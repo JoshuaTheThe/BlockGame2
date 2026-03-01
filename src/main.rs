@@ -20,8 +20,4 @@ fn main()
                 renderer.clear(renderer::Color::RED);
                 renderer.get_window().swap_window();
         }
-
-        unsafe {
-                // Cleanup Code would go here
-        }
 }
