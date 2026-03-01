@@ -20,7 +20,7 @@ fn main()
         'mainloop: loop
         {
                 renderer.set_view_projection(
-                        Vector3::new(0.0, 10.0, 100.0),
+                        Vector3::new(0.0, 0.1, 100.0),
                         Vector3::new(0.0, 0.0, 0.0),
                         Vector3::new(0.0, 0.0, 1.0)
                 );
