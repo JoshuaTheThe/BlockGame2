@@ -14,7 +14,6 @@ fn main()
 
         chunk_manager.add_player(Vector3::new(0.0, 0.0, 0.0), "Player".to_string());
         chunk_manager.load_chunks();
-        chunk_manager.update();
         chunk_manager.generate_meshes();
 
         'mainloop: loop

@@ -6,7 +6,7 @@ use crate::vector::*;
 
 pub const CHUNK_SIZE: usize = 16;
 pub const CHUNK_HEIGHT: usize = 256;
-pub const VIEW_DISTANCE: usize = 3;
+pub const VIEW_DISTANCE: usize = 2;
 pub const EXTRA_CHUNKS: usize = 1;
 pub const FLOOR_PI: usize = 3;
 pub const MAX_CHUNKS: usize = VIEW_DISTANCE * VIEW_DISTANCE * FLOOR_PI + EXTRA_CHUNKS;
@@ -38,7 +38,7 @@ pub struct Player
 #[derive(Clone)]
 pub struct ChunkManager
 {
-        chunks: [Option<Chunk>; MAX_CHUNKS],
+        chunks: Vec<Option<Box<Chunk>>>,
         players: Vec<Player>,
         meshes: Vec<Mesh>,
 }
@@ -251,40 +251,23 @@ impl ChunkManager
 {
         pub fn find_chunk(&self, xy: Vector2i) -> Option<&Chunk>
         {
-                self.chunks.iter().filter_map(|chunk_opt| chunk_opt.as_ref())
-                        .find(|chunk| chunk.xy.x == xy.x && chunk.xy.y == xy.y) 
+                self.chunks.iter()
+                        .filter_map(|chunk_opt| chunk_opt.as_ref().map(|b| &**b))
+                        .find(|chunk| chunk.xy.x == xy.x && chunk.xy.y == xy.y)
         }
 
         pub fn get_chunk(&self, index: usize) -> Option<&Chunk>
         {
-                if index >= MAX_CHUNKS
-                {
-                        None
-                }
-                else
-                {
-                        self.chunks[index].as_ref()
-                }
-        }
-
-        pub fn update(&mut self)
-        {
-                for chunk_opt in self.chunks.iter_mut()
-                {
-                        if let Some(chunk) = chunk_opt
-                        {
-                                println!("Test - chunk at ({}, {})", chunk.xy.x, chunk.xy.y);
-                        }
-                } 
+                self.chunks.get(index).and_then(|opt| opt.as_ref().map(|b| &**b))
         }
 
         pub fn new() -> Self
         {
                 const NONE: Option<Chunk> = None;
                 Self {
-                    chunks: [NONE; MAX_CHUNKS],
-                    players: Vec::new(),
-                    meshes: Vec::new(),
+                        chunks: Vec::with_capacity(MAX_CHUNKS),
+                        players: Vec::new(),
+                        meshes: Vec::new(),
                 }
         }
 
@@ -315,9 +298,13 @@ impl ChunkManager
                 {
                         if chunk_opt.is_none()
                         {
-                                *chunk_opt = Some(chunk);
-                                break;
+                                *chunk_opt = Some(Box::new(chunk));
+                                return;
                         }
+                }
+                if self.chunks.len() < MAX_CHUNKS
+                {
+                        self.chunks.push(Some(Box::new(chunk)));
                 }
         }
 
@@ -359,26 +346,19 @@ impl ChunkManager
         {
                 let mut removed_count = 0;
                 let view_distance_sq = (VIEW_DISTANCE * VIEW_DISTANCE) as i32;
+                
                 if self.players.is_empty()
                 {
-                        for chunk_opt in self.chunks.iter_mut()
-                        {
-                                if chunk_opt.is_some()
-                                {
-                                        *chunk_opt = None;
-                                        removed_count += 1;
-                                }
-                        }
-                        return removed_count;
+                        self.chunks.clear();
+                        return 0;
                 }
             
-                for chunk_opt in self.chunks.iter_mut() 
-                {
+                self.chunks.retain_mut(|chunk_opt| {
                         if let Some(chunk) = chunk_opt
                         {
                                 let chunk_x = chunk.xy.x;
                                 let chunk_y = chunk.xy.y;
-                                let mut keep_chunk = false;                    
+                                
                                 for player in &self.players
                                 {
                                         let player_chunk_x = (player.pos.x as i32) / CHUNK_SIZE as i32;
@@ -388,17 +368,18 @@ impl ChunkManager
                                         let dist_sq = dx * dx + dy * dy;
                                         if dist_sq <= view_distance_sq
                                         {
-                                                keep_chunk = true;
-                                                break;
+                                                return true;
                                         }
                                 }
-                                if !keep_chunk
-                                {
-                                        *chunk_opt = None;
-                                        removed_count += 1;
-                                }
+                                removed_count += 1;
+                                false
                         }
-                }
+                        else
+                        {
+                                false
+                        }
+                });
+                
                 println!(" [info] removed {} chunks", removed_count);
                 removed_count
         }
