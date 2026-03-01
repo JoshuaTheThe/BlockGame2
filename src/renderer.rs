@@ -3,6 +3,9 @@ pub use beryllium::*;
 pub use std::ffi::CString;
 pub use std::ptr;
 
+use crate::vector::*;
+use cgmath::Matrix;
+
 const WINDOW_TITLE: &str = "Block Game 2";
 const WINDOW_WIDTH: i32 = 800;
 const WINDOW_HEIGHT: i32 = 600;
@@ -41,6 +44,13 @@ pub struct Vertex
         pub color: Color,
 }
 
+#[derive(Clone)]
+pub struct Mesh
+{
+        pub vertices: Vec<Vertex>,
+        pub indices: Vec<u32>,
+}
+
 impl Vertex
 {
         pub fn new(x: f32, y: f32, z: f32, color: Color) -> Self
@@ -52,7 +62,6 @@ impl Vertex
                 }
         }
 }
-    
 
 pub struct Renderer
 {
@@ -61,6 +70,7 @@ pub struct Renderer
         program: gl::types::GLuint,
         vao: gl::types::GLuint,
         vbo: gl::types::GLuint,
+        ebo: gl::types::GLuint,
 }
 
 impl Renderer
@@ -127,10 +137,13 @@ impl Renderer
                         #version 330 core
                         layout (location = 0) in vec3 aPos;
                         layout (location = 1) in vec4 aColor;
+                        uniform mat4 model;
+                        uniform mat4 view;
+                        uniform mat4 projection;
                         out vec4 vColor;
                         void main()
                         {
-                                gl_Position = vec4(aPos, 1.0);
+                                gl_Position = projection * view * model * vec4(aPos, 1.0);
                                 vColor = aColor;
                         }"#,
                 );
@@ -184,17 +197,20 @@ impl Renderer
                 }
         }
         
-        fn setup_buffers() -> (gl::types::GLuint, gl::types::GLuint)
+        fn setup_buffers() -> (gl::types::GLuint, gl::types::GLuint, gl::types::GLuint)
         {
                 let mut vao = 0;
                 let mut vbo = 0;
+                let mut ebo = 0;
                 
                 unsafe
                 {
                     gl::GenVertexArrays(1, &mut vao);
                     gl::GenBuffers(1, &mut vbo);
+                    gl::GenBuffers(1, &mut ebo);
                     gl::BindVertexArray(vao);
                     gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+                    gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
                     gl::VertexAttribPointer(
                         0, 3, gl::FLOAT, gl::FALSE,
                         std::mem::size_of::<Vertex>() as i32,
@@ -209,7 +225,7 @@ impl Renderer
                     gl::EnableVertexAttribArray(1);
                 }
                 
-                (vao, vbo)
+                (vao, vbo, ebo)
         }
 
         pub fn new() -> Self
@@ -241,7 +257,7 @@ impl Renderer
                 });
 
                 let program = Self::create_shader_program();
-                let (vao, vbo) = Self::setup_buffers();
+                let (vao, vbo, ebo) = Self::setup_buffers();
 
                 unsafe
                 {
@@ -255,6 +271,47 @@ impl Renderer
                         program,
                         vao,
                         vbo,
+                        ebo,
+                }
+        }
+
+        pub fn draw_mesh(&self, mesh: &Mesh, pos: Vector3)
+        {
+                unsafe
+                {
+                        let model = cgmath::Matrix4::from_translation(cgmath::Vector3::new(pos.x, pos.y, pos.z));
+                        let model_loc = gl::GetUniformLocation(self.program, CString::new("model").unwrap().as_ptr());
+                        gl::UniformMatrix4fv(model_loc, 1, gl::FALSE, model.as_ptr());
+                        gl::BindVertexArray(self.vao);
+                        gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
+                        gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ebo);
+                        gl::BufferData(
+                                gl::ARRAY_BUFFER,
+                                (mesh.vertices.len() * std::mem::size_of::<Vertex>()) as gl::types::GLsizeiptr,
+                                mesh.vertices.as_ptr() as *const _,
+                                gl::STATIC_DRAW,
+                        );
+                
+                        if !mesh.indices.is_empty()
+                        {
+                                gl::BufferData(
+                                        gl::ELEMENT_ARRAY_BUFFER,
+                                        (mesh.indices.len() * std::mem::size_of::<u32>()) as gl::types::GLsizeiptr,
+                                        mesh.indices.as_ptr() as *const _,
+                                        gl::STATIC_DRAW,
+                                );
+                    
+                                gl::DrawElements(
+                                        gl::TRIANGLES,
+                                        mesh.indices.len() as i32,
+                                        gl::UNSIGNED_INT,
+                                        std::ptr::null()
+                                );
+                        }
+                        else
+                        {
+                                gl::DrawArrays(gl::TRIANGLES, 0, mesh.vertices.len() as i32);
+                        }
                 }
         }
 }

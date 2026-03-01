@@ -1,6 +1,9 @@
 
 // notice - we are using the Z=Up Coordinate System
 
+use crate::renderer::*;
+use crate::vector::*;
+
 const CHUNK_SIZE: usize = 16;
 const CHUNK_HEIGHT: usize = 256;
 const VIEW_DISTANCE: usize = 4;
@@ -14,36 +17,6 @@ pub enum BlockType
 {
         BlockAir,
         BlockStone,
-}
-
-#[derive(Clone, Copy)]
-pub struct Vector2
-{
-        x: f32,
-        y: f32,
-}
-
-#[derive(Clone, Copy)]
-pub struct Vector2i
-{
-        x: i32,
-        y: i32,
-}
-
-#[derive(Clone, Copy)]
-pub struct Vector3
-{
-        x: f32,
-        y: f32,
-        z: f32,
-}
-
-#[derive(Clone, Copy)]
-pub struct Vector3i
-{
-        x: i32,
-        y: i32,
-        z: i32,
 }
 
 #[derive(Clone, Copy)]
@@ -67,38 +40,7 @@ pub struct ChunkManager
 {
         chunks: [Option<Chunk>; MAX_CHUNKS],
         players: Vec<Player>,
-}
-
-impl Vector2
-{
-        pub fn new(x: f32, y: f32) -> Self
-        {
-                Self { x, y }
-        }
-}
-
-impl Vector2i
-{
-        pub fn new(x: i32, y: i32) -> Self
-        {
-                Self { x, y }
-        }
-}
-
-impl Vector3
-{
-        pub fn new(x: f32, y: f32, z: f32) -> Self
-        {
-                Self { x, y, z }
-        }
-}
-
-impl Vector3i
-{
-        pub fn new(x: i32, y: i32, z: i32) -> Self
-        {
-                Self { x, y, z }
-        }
+        meshes: Vec<Mesh>,
 }
 
 impl Player
@@ -126,6 +68,160 @@ impl Player
 
 impl Chunk
 {
+        fn add_block_faces(&self, x: usize, y: usize, z: usize, vertices: &mut Vec<Vertex>, indices: &mut Vec<u32>)
+        {
+                let block_pos = [
+                        x as f32 - (CHUNK_SIZE as f32 / 2.0),  // Center chunk at origin
+                        y as f32 - (CHUNK_SIZE as f32 / 2.0),
+                        z as f32,
+                ];
+                    
+                let face_color: Color = Color {r: 0.7, g: 0.7, b: 0.7, a: 1.0};
+                let current_block = BlockType::BlockStone;
+                    
+                let is_air = |bx: i32, by: i32, bz: i32| -> bool {
+                        if bx < 0 || bx >= CHUNK_SIZE as i32 ||
+                           by < 0 || by >= CHUNK_SIZE as i32 ||
+                           bz < 0 || bz >= CHUNK_HEIGHT as i32 {
+                            return true; // out of bounds is air (oh well)
+                        }
+                        match self.blocks[Self::index(bx as usize, by as usize, bz as usize)] {
+                            BlockType::BlockAir => true,
+                            BlockType::BlockStone => false,
+                        }
+                };
+                    
+                let (x, y, z) = (x as i32, y as i32, z as i32);
+                let idx_offset = vertices.len() as u32;
+                    
+                // Front face (positive Y)
+                if is_air(x, y + 1, z)
+                {
+                        vertices.extend_from_slice(&[
+                            Vertex::new(block_pos[0] - 0.5, block_pos[1] + 0.5, block_pos[2] - 0.5, face_color), // Bottom left
+                            Vertex::new(block_pos[0] + 0.5, block_pos[1] + 0.5, block_pos[2] - 0.5, face_color), // Bottom right
+                            Vertex::new(block_pos[0] + 0.5, block_pos[1] + 0.5, block_pos[2] + 0.5, face_color), // Top right
+                            Vertex::new(block_pos[0] - 0.5, block_pos[1] + 0.5, block_pos[2] + 0.5, face_color), // Top left
+                        ]);
+                        indices.extend_from_slice(&[
+                            idx_offset, idx_offset + 1, idx_offset + 2,
+                            idx_offset, idx_offset + 2, idx_offset + 3,
+                        ]);
+                }
+                    
+                // Back face (negative Y)
+                if is_air(x, y - 1, z)
+                {
+                        let idx_offset = vertices.len() as u32;
+                        vertices.extend_from_slice(&[
+                            Vertex::new(block_pos[0] - 0.5, block_pos[1] - 0.5, block_pos[2] + 0.5, face_color), // Top left
+                            Vertex::new(block_pos[0] + 0.5, block_pos[1] - 0.5, block_pos[2] + 0.5, face_color), // Top right
+                            Vertex::new(block_pos[0] + 0.5, block_pos[1] - 0.5, block_pos[2] - 0.5, face_color), // Bottom right
+                            Vertex::new(block_pos[0] - 0.5, block_pos[1] - 0.5, block_pos[2] - 0.5, face_color), // Bottom left
+                        ]);
+                        indices.extend_from_slice(&[
+                            idx_offset, idx_offset + 1, idx_offset + 2,
+                            idx_offset, idx_offset + 2, idx_offset + 3,
+                        ]);
+                }
+                    
+                // Left face (negative X)
+                if is_air(x - 1, y, z)
+                {
+                        let idx_offset = vertices.len() as u32;
+                        vertices.extend_from_slice(&[
+                            Vertex::new(block_pos[0] - 0.5, block_pos[1] - 0.5, block_pos[2] + 0.5, face_color), // Top front
+                            Vertex::new(block_pos[0] - 0.5, block_pos[1] + 0.5, block_pos[2] + 0.5, face_color), // Top back
+                            Vertex::new(block_pos[0] - 0.5, block_pos[1] + 0.5, block_pos[2] - 0.5, face_color), // Bottom back
+                            Vertex::new(block_pos[0] - 0.5, block_pos[1] - 0.5, block_pos[2] - 0.5, face_color), // Bottom front
+                        ]);
+                        indices.extend_from_slice(&[
+                            idx_offset, idx_offset + 1, idx_offset + 2,
+                            idx_offset, idx_offset + 2, idx_offset + 3,
+                        ]);
+                }
+                    
+                // Right face (positive X)
+                if is_air(x + 1, y, z)
+                {
+                        let idx_offset = vertices.len() as u32;
+                        vertices.extend_from_slice(&[
+                            Vertex::new(block_pos[0] + 0.5, block_pos[1] - 0.5, block_pos[2] - 0.5, face_color), // Bottom front
+                            Vertex::new(block_pos[0] + 0.5, block_pos[1] + 0.5, block_pos[2] - 0.5, face_color), // Bottom back
+                            Vertex::new(block_pos[0] + 0.5, block_pos[1] + 0.5, block_pos[2] + 0.5, face_color), // Top back
+                            Vertex::new(block_pos[0] + 0.5, block_pos[1] - 0.5, block_pos[2] + 0.5, face_color), // Top front
+                        ]);
+                        indices.extend_from_slice(&[
+                            idx_offset, idx_offset + 1, idx_offset + 2,
+                            idx_offset, idx_offset + 2, idx_offset + 3,
+                        ]);
+                }
+                    
+                // Bottom face (negative Z) - remember Z is up!
+                if is_air(x, y, z - 1)
+                {
+                        let idx_offset = vertices.len() as u32;
+                        vertices.extend_from_slice(&[
+                            Vertex::new(block_pos[0] - 0.5, block_pos[1] - 0.5, block_pos[2] - 0.5, face_color), // Bottom left
+                            Vertex::new(block_pos[0] + 0.5, block_pos[1] - 0.5, block_pos[2] - 0.5, face_color), // Bottom right
+                            Vertex::new(block_pos[0] + 0.5, block_pos[1] + 0.5, block_pos[2] - 0.5, face_color), // Top right
+                            Vertex::new(block_pos[0] - 0.5, block_pos[1] + 0.5, block_pos[2] - 0.5, face_color), // Top left
+                        ]);
+                        indices.extend_from_slice(&[
+                            idx_offset, idx_offset + 1, idx_offset + 2,
+                            idx_offset, idx_offset + 2, idx_offset + 3,
+                        ]);
+                }
+                    
+                // Top face (positive Z)
+                if is_air(x, y, z + 1)
+                {
+                        let idx_offset = vertices.len() as u32;
+                        vertices.extend_from_slice(&[
+                            Vertex::new(block_pos[0] - 0.5, block_pos[1] - 0.5, block_pos[2] + 0.5, face_color), // Bottom left
+                            Vertex::new(block_pos[0] + 0.5, block_pos[1] - 0.5, block_pos[2] + 0.5, face_color), // Bottom right
+                            Vertex::new(block_pos[0] + 0.5, block_pos[1] + 0.5, block_pos[2] + 0.5, face_color), // Top right
+                            Vertex::new(block_pos[0] - 0.5, block_pos[1] + 0.5, block_pos[2] + 0.5, face_color), // Top left
+                        ]);
+                        indices.extend_from_slice(&[
+                            idx_offset, idx_offset + 1, idx_offset + 2,
+                            idx_offset, idx_offset + 2, idx_offset + 3,
+                        ]);
+                }
+        }
+
+        pub fn generate_mesh(&self) -> Mesh
+        {
+                let mut vertices: Vec<Vertex> = Vec::new();
+                let mut indices: Vec<u32> = Vec::new();
+                    
+                for x in 0..CHUNK_SIZE
+                {
+                        for y in 0..CHUNK_SIZE
+                        {
+                                for z in 0..CHUNK_HEIGHT
+                                {
+                                        let block = self.blocks[Self::index(x, y, z)];
+                                        match block
+                                        {
+                                                BlockType::BlockAir => continue,
+                                                BlockType::BlockStone =>
+                                                {
+                                                        self.add_block_faces(x, y, z, &mut vertices, &mut indices);
+                                                }
+                                        }
+                                }
+                        }
+                }
+                    
+                Mesh { vertices, indices }
+        }
+                
+        fn index(x: usize, y: usize, z: usize) -> usize
+        {
+                x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE
+        }
+
         pub fn get_block(&self, xyz: Vector3i) -> Option<BlockType>
         {
                 if xyz.x < 0 || xyz.x >= CHUNK_SIZE as i32 ||
@@ -188,6 +284,7 @@ impl ChunkManager
                 Self {
                     chunks: [NONE; MAX_CHUNKS],
                     players: Vec::new(),
+                    meshes: Vec::new(),
                 }
         }
 
@@ -302,8 +399,24 @@ impl ChunkManager
 
         pub fn generate(&self, xy: Vector2i) -> Chunk
         {
+                let mut blocks: [BlockType; BLOCKS_PER_CHUNK] = [BlockType::BlockAir; BLOCKS_PER_CHUNK];
+                for x in 0..CHUNK_SIZE
+                {
+                        for y in 0..CHUNK_SIZE
+                        {
+                                for z in 0..CHUNK_HEIGHT
+                                {
+                                        if z < 64
+                                        {
+                                                let index = Chunk::index(x, y, z);
+                                                blocks[index] = BlockType::BlockStone;
+                                        }
+                                }
+                        }
+                }
+
                 Chunk {
-                        blocks: [BlockType::BlockStone; BLOCKS_PER_CHUNK],
+                        blocks: blocks,
                         xy: xy,
                 }
         }
@@ -319,5 +432,32 @@ impl ChunkManager
                                 self.insert_chunk(chunk);
                         }
                 }
+        }
+
+        pub fn generate_meshes(&mut self) -> &[Mesh]
+        {
+                let mut meshes: Vec<Mesh> = Vec::with_capacity(MAX_CHUNKS);
+
+                for chunk_op in self.chunks.iter()
+                {
+                        if let Some(chunk) = chunk_op
+                        {
+                                meshes.push(chunk.generate_mesh());
+                        }
+                }
+
+                self.meshes = meshes;
+                &self.meshes
+        }
+
+        pub fn get_meshes(&self) -> &[Mesh]
+        {
+                &self.meshes
+        }
+
+        pub fn needs_mesh_update(&self) -> bool
+        {
+                let loaded_chunks = self.chunks.iter().filter(|c| c.is_some()).count();
+                self.meshes.len() != loaded_chunks
         }
 }
