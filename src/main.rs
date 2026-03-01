@@ -19,10 +19,8 @@ const FRAG_SHADER: &str = r#"#version 330 core
 "#;
 
 fn main() {
-    // Initialize SDL - Sdl::init doesn't return Result in beryllium
     let sdl = Sdl::init(init::InitFlags::EVERYTHING);
 
-    // Set OpenGL attributes before creating window
     sdl.set_gl_context_major_version(3)
         .expect("Failed to set GL major version");
     sdl.set_gl_context_minor_version(3)
@@ -48,7 +46,6 @@ fn main() {
         .create_gl_window(win_args)
         .expect("Couldn't make a window");
 
-    // Load OpenGL functions
     gl::load_with(|s| {
         let c_str = CString::new(s).unwrap();
         unsafe { window.get_proc_address(c_str.as_ptr() as *const u8) as *const _ }
@@ -59,14 +56,11 @@ fn main() {
         gl::ClearColor(0.0, 0.0, 0.0, 1.0);
     }
 
-    // Create and setup VAO, VBO
     let (vao, vbo, shader_program) = unsafe {
-        // Generate VAO
         let mut vao = 0;
         gl::GenVertexArrays(1, &mut vao);
         gl::BindVertexArray(vao);
 
-        // Generate and setup VBO
         let mut vbo = 0;
         gl::GenBuffers(1, &mut vbo);
         gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
@@ -77,7 +71,6 @@ fn main() {
             gl::STATIC_DRAW,
         );
 
-        // Setup vertex attributes
         gl::VertexAttribPointer(
             0,
             3,
@@ -88,17 +81,14 @@ fn main() {
         );
         gl::EnableVertexAttribArray(0);
 
-        // Unbind VBO and VAO (optional, but good practice)
         gl::BindBuffer(gl::ARRAY_BUFFER, 0);
         gl::BindVertexArray(0);
 
-        // Compile vertex shader
         let vertex_shader = gl::CreateShader(gl::VERTEX_SHADER);
         let vert_source = CString::new(VERT_SHADER).unwrap();
         gl::ShaderSource(vertex_shader, 1, &vert_source.as_ptr(), ptr::null());
         gl::CompileShader(vertex_shader);
 
-        // Check vertex shader compilation
         let mut success = 0;
         gl::GetShaderiv(vertex_shader, gl::COMPILE_STATUS, &mut success);
         if success == 0 {
@@ -117,13 +107,11 @@ fn main() {
             );
         }
 
-        // Compile fragment shader
         let fragment_shader = gl::CreateShader(gl::FRAGMENT_SHADER);
         let frag_source = CString::new(FRAG_SHADER).unwrap();
         gl::ShaderSource(fragment_shader, 1, &frag_source.as_ptr(), ptr::null());
         gl::CompileShader(fragment_shader);
 
-        // Check fragment shader compilation
         let mut success = 0;
         gl::GetShaderiv(fragment_shader, gl::COMPILE_STATUS, &mut success);
         if success == 0 {
@@ -142,13 +130,11 @@ fn main() {
             );
         }
 
-        // Link program
         let shader_program = gl::CreateProgram();
         gl::AttachShader(shader_program, vertex_shader);
         gl::AttachShader(shader_program, fragment_shader);
         gl::LinkProgram(shader_program);
 
-        // Check linking
         let mut success = 0;
         gl::GetProgramiv(shader_program, gl::LINK_STATUS, &mut success);
         if success == 0 {
@@ -164,14 +150,12 @@ fn main() {
             panic!("Program linking failed: {}", String::from_utf8_lossy(&log));
         }
 
-        // Clean up shaders
         gl::DeleteShader(vertex_shader);
         gl::DeleteShader(fragment_shader);
 
         (vao, vbo, shader_program)
     };
 
-    // Main loop
     'mainloop: loop {
         while let Some(event) = sdl.poll_events() {
             match event {
@@ -190,7 +174,6 @@ fn main() {
         window.swap_window();
     }
 
-    // Cleanup (optional, OS will handle it)
     unsafe {
         gl::DeleteProgram(shader_program);
         gl::DeleteBuffers(1, &vbo);
