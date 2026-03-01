@@ -6,10 +6,10 @@ use crate::vector::*;
 
 pub const CHUNK_SIZE: usize = 16;
 pub const CHUNK_HEIGHT: usize = 256;
-pub const VIEW_DISTANCE: usize = 1;
+pub const VIEW_DISTANCE: usize = 3;
 pub const EXTRA_CHUNKS: usize = 1;
 pub const FLOOR_PI: usize = 3;
-pub const MAX_CHUNKS: usize = VIEW_DISTANCE * FLOOR_PI + EXTRA_CHUNKS;
+pub const MAX_CHUNKS: usize = VIEW_DISTANCE * VIEW_DISTANCE * FLOOR_PI + EXTRA_CHUNKS;
 pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT;
 
 #[derive(Clone, Copy)]
@@ -321,11 +321,13 @@ impl ChunkManager
                 }
         }
 
-       // Find chunks that should be loaded based on player positions
+        // Find chunks that should be loaded based on player positions using circular distance
         pub fn find_chunks_to_load(&self) -> Vec<Vector2i>
         {
                 let mut chunks_to_load = Vec::new();
                 let view_dist = VIEW_DISTANCE as i32;
+                let view_dist_squared = (VIEW_DISTANCE * VIEW_DISTANCE) as i32;
+                
                 for player in &self.players
                 {
                         let player_chunk_x = (player.pos.x as i32) / CHUNK_SIZE as i32;
@@ -334,14 +336,17 @@ impl ChunkManager
                         {
                                 for dz in -view_dist..=view_dist
                                 {
-                                        let chunk_x = player_chunk_x + dx;
-                                        let chunk_y = player_chunk_y + dz;
-                                        let already_loaded = self.chunks.iter()
-                                                .filter_map(|opt| opt.as_ref())
-                                                .any(|chunk| chunk.xy.x == chunk_x && chunk.xy.y == chunk_y);
-                                        if !already_loaded
+                                        if dx*dx + dz*dz <= view_dist_squared
                                         {
-                                                chunks_to_load.push(Vector2i::new(chunk_x, chunk_y));
+                                                let chunk_x = player_chunk_x + dx;
+                                                let chunk_y = player_chunk_y + dz;
+                                                let already_loaded = self.chunks.iter()
+                                                        .filter_map(|opt| opt.as_ref())
+                                                        .any(|chunk| chunk.xy.x == chunk_x && chunk.xy.y == chunk_y);
+                                                if !already_loaded
+                                                {
+                                                        chunks_to_load.push(Vector2i::new(chunk_x, chunk_y));
+                                                }
                                         }
                                 }
                         }
