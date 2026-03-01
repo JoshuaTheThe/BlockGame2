@@ -1,5 +1,6 @@
 use beryllium::*;
 use std::ffi::CString;
+use std::ptr;
 
 type Vertex = [f32; 3];
 const VERTICES: [Vertex; 3] = [[-0.5, -0.5, 0.0], [0.5, -0.5, 0.0], [0.0, 0.5, 0.0]];
@@ -12,25 +13,31 @@ const VERT_SHADER: &str = r#"#version 330 core
 
 const FRAG_SHADER: &str = r#"#version 330 core
   out vec4 final_color;
-
   void main() {
     final_color = vec4(1.0, 0.5, 0.2, 1.0);
   }
 "#;
 
 fn main() {
+    // Initialize SDL - Sdl::init doesn't return Result in beryllium
     let sdl = Sdl::init(init::InitFlags::EVERYTHING);
-    sdl.set_gl_context_major_version(3).unwrap();
-    sdl.set_gl_context_minor_version(3).unwrap(); // Added this line
-    sdl.set_gl_profile(video::GlProfile::Core).unwrap();
-    #[cfg(target_os = "linux")]
+
+    // Set OpenGL attributes before creating window
+    sdl.set_gl_context_major_version(3)
+        .expect("Failed to set GL major version");
+    sdl.set_gl_context_minor_version(3)
+        .expect("Failed to set GL minor version");
+    sdl.set_gl_profile(video::GlProfile::Core)
+        .expect("Failed to set GL profile");
+
+    #[cfg(target_os = "macos")]
     {
         sdl.set_gl_context_flags(video::GlContextFlags::FORWARD_COMPATIBLE)
-            .unwrap();
+            .expect("Failed to set GL context flags");
     }
-    let title: &str = "window";
+
     let win_args = video::CreateWinArgs {
-        title: title,
+        title: "Window",
         width: 800,
         height: 600,
         allow_high_dpi: true,
@@ -39,93 +46,132 @@ fn main() {
     };
     let window = sdl
         .create_gl_window(win_args)
-        .expect("couldn't make a window and context");
+        .expect("Couldn't make a window");
+
+    // Load OpenGL functions
     gl::load_with(|s| {
         let c_str = CString::new(s).unwrap();
         unsafe { window.get_proc_address(c_str.as_ptr() as *const u8) as *const _ }
     });
 
-    let (vao, shader_program) = unsafe {
+    unsafe {
         gl::Disable(gl::DEPTH_TEST);
         gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+    }
+
+    // Create and setup VAO, VBO
+    let (vao, vbo, shader_program) = unsafe {
+        // Generate VAO
         let mut vao = 0;
         gl::GenVertexArrays(1, &mut vao);
-        assert_ne!(vao, 0);
+        gl::BindVertexArray(vao);
+
+        // Generate and setup VBO
         let mut vbo = 0;
         gl::GenBuffers(1, &mut vbo);
-        assert_ne!(vbo, 0);
         gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
         gl::BufferData(
             gl::ARRAY_BUFFER,
-            size_of_val(&VERTICES) as isize,
+            (VERTICES.len() * std::mem::size_of::<Vertex>()) as isize,
             VERTICES.as_ptr().cast(),
             gl::STATIC_DRAW,
         );
+
+        // Setup vertex attributes
         gl::VertexAttribPointer(
             0,
             3,
             gl::FLOAT,
             gl::FALSE,
-            size_of::<Vertex>().try_into().unwrap(),
-            0 as *const _,
+            std::mem::size_of::<Vertex>() as i32,
+            ptr::null(),
         );
         gl::EnableVertexAttribArray(0);
+
+        // Unbind VBO and VAO (optional, but good practice)
+        gl::BindBuffer(gl::ARRAY_BUFFER, 0);
+        gl::BindVertexArray(0);
+
+        // Compile vertex shader
         let vertex_shader = gl::CreateShader(gl::VERTEX_SHADER);
-        assert_ne!(vertex_shader, 0);
-        gl::ShaderSource(
-            vertex_shader,
-            1,
-            &(VERT_SHADER.as_bytes().as_ptr().cast()),
-            &(VERT_SHADER.len().try_into().unwrap()),
-        );
+        let vert_source = CString::new(VERT_SHADER).unwrap();
+        gl::ShaderSource(vertex_shader, 1, &vert_source.as_ptr(), ptr::null());
         gl::CompileShader(vertex_shader);
+
+        // Check vertex shader compilation
         let mut success = 0;
         gl::GetShaderiv(vertex_shader, gl::COMPILE_STATUS, &mut success);
         if success == 0 {
-            let mut v: Vec<u8> = Vec::with_capacity(1024);
-            let mut log_len = 0_i32;
-            gl::GetShaderInfoLog(vertex_shader, 1024, &mut log_len, v.as_mut_ptr().cast());
-            v.set_len(log_len.try_into().unwrap());
-            panic!("Vertex Compile Error: {}", String::from_utf8_lossy(&v));
+            let mut log_len = 0;
+            gl::GetShaderiv(vertex_shader, gl::INFO_LOG_LENGTH, &mut log_len);
+            let mut log = vec![0u8; log_len as usize];
+            gl::GetShaderInfoLog(
+                vertex_shader,
+                log_len,
+                &mut log_len,
+                log.as_mut_ptr().cast(),
+            );
+            panic!(
+                "Vertex shader compilation failed: {}",
+                String::from_utf8_lossy(&log)
+            );
         }
+
+        // Compile fragment shader
         let fragment_shader = gl::CreateShader(gl::FRAGMENT_SHADER);
-        assert_ne!(fragment_shader, 0);
-        gl::ShaderSource(
-            fragment_shader,
-            1,
-            &(FRAG_SHADER.as_bytes().as_ptr().cast()),
-            &(FRAG_SHADER.len().try_into().unwrap()),
-        );
+        let frag_source = CString::new(FRAG_SHADER).unwrap();
+        gl::ShaderSource(fragment_shader, 1, &frag_source.as_ptr(), ptr::null());
         gl::CompileShader(fragment_shader);
+
+        // Check fragment shader compilation
         let mut success = 0;
         gl::GetShaderiv(fragment_shader, gl::COMPILE_STATUS, &mut success);
         if success == 0 {
-            let mut v: Vec<u8> = Vec::with_capacity(1024);
-            let mut log_len = 0_i32;
-            gl::GetShaderInfoLog(fragment_shader, 1024, &mut log_len, v.as_mut_ptr().cast());
-            v.set_len(log_len.try_into().unwrap());
-            panic!("Fragment Compile Error: {}", String::from_utf8_lossy(&v));
+            let mut log_len = 0;
+            gl::GetShaderiv(fragment_shader, gl::INFO_LOG_LENGTH, &mut log_len);
+            let mut log = vec![0u8; log_len as usize];
+            gl::GetShaderInfoLog(
+                fragment_shader,
+                log_len,
+                &mut log_len,
+                log.as_mut_ptr().cast(),
+            );
+            panic!(
+                "Fragment shader compilation failed: {}",
+                String::from_utf8_lossy(&log)
+            );
         }
 
+        // Link program
         let shader_program = gl::CreateProgram();
         gl::AttachShader(shader_program, vertex_shader);
         gl::AttachShader(shader_program, fragment_shader);
         gl::LinkProgram(shader_program);
 
+        // Check linking
         let mut success = 0;
         gl::GetProgramiv(shader_program, gl::LINK_STATUS, &mut success);
         if success == 0 {
-            let mut v: Vec<u8> = Vec::with_capacity(1024);
-            let mut log_len = 0_i32;
-            gl::GetProgramInfoLog(shader_program, 1024, &mut log_len, v.as_mut_ptr().cast());
-            v.set_len(log_len.try_into().unwrap());
-            panic!("Program Link Error: {}", String::from_utf8_lossy(&v));
+            let mut log_len = 0;
+            gl::GetProgramiv(shader_program, gl::INFO_LOG_LENGTH, &mut log_len);
+            let mut log = vec![0u8; log_len as usize];
+            gl::GetProgramInfoLog(
+                shader_program,
+                log_len,
+                &mut log_len,
+                log.as_mut_ptr().cast(),
+            );
+            panic!("Program linking failed: {}", String::from_utf8_lossy(&log));
         }
 
+        // Clean up shaders
         gl::DeleteShader(vertex_shader);
         gl::DeleteShader(fragment_shader);
-        (vao, shader_program)
+
+        (vao, vbo, shader_program)
     };
+
+    // Main loop
     'mainloop: loop {
         while let Some(event) = sdl.poll_events() {
             match event {
@@ -140,6 +186,14 @@ fn main() {
             gl::BindVertexArray(vao);
             gl::DrawArrays(gl::TRIANGLES, 0, 3);
         }
+
         window.swap_window();
+    }
+
+    // Cleanup (optional, OS will handle it)
+    unsafe {
+        gl::DeleteProgram(shader_program);
+        gl::DeleteBuffers(1, &vbo);
+        gl::DeleteVertexArrays(1, &vao);
     }
 }
