@@ -204,4 +204,19 @@ impl ChunkManager
                 let player = Player::new(Some(name), initial_pos);
                 self.players.push(player);
         }
+
+        pub fn remove_player(&mut self, name: &String)
+        {
+                self.players.retain(|p| p.name.as_ref() != Some(name));
+        }
+            
+        pub fn get_player(&self, name: &String) -> Option<&Player>
+        {
+                self.players.iter().find(|p| p.name.as_ref() == Some(name))
+        }
+            
+        pub fn get_player_mut(&mut self, name: &String) -> Option<&mut Player>
+        {
+                self.players.iter_mut().find(|p| p.name.as_ref() == Some(name))
+        }
 }
