@@ -195,19 +195,15 @@ impl Chunk
         pub fn get_block(&self, xyz: Vector3i) -> Option<BlockType>
         {
                 if xyz.x < 0 || xyz.x >= CHUNK_SIZE as i32 ||
-                       xyz.y < 0 || xyz.y >= CHUNK_SIZE as i32 ||
-                       xyz.z < 0 || xyz.z >= CHUNK_HEIGHT as i32 {
-                        return None;
+                   xyz.y < 0 || xyz.y >= CHUNK_SIZE as i32 ||
+                   xyz.z < 0 || xyz.z >= CHUNK_HEIGHT as i32 {
+                    return None;
                 }
-
-                // Project xyz => flat array
-                let x: usize = xyz.x as usize; 
-                let y: usize = xyz.y as usize * CHUNK_SIZE;
-                let z: usize = xyz.z as usize * CHUNK_SIZE * CHUNK_SIZE;
-                let index: usize = x + y + z;
+        
+                let index = Self::index(xyz.x as usize, xyz.y as usize, xyz.z as usize);
                 Some(self.blocks[index])
         }
-
+        
         pub fn new(xy: Vector2i) -> Self
         {
                 Self {
