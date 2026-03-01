@@ -4,13 +4,13 @@
 use crate::renderer::*;
 use crate::vector::*;
 
-const CHUNK_SIZE: usize = 16;
-const CHUNK_HEIGHT: usize = 256;
-const VIEW_DISTANCE: usize = 4;
-const EXTRA_CHUNKS: usize = 1;
-const FLOOR_PI: usize = 3;
-const MAX_CHUNKS: usize = VIEW_DISTANCE * FLOOR_PI + EXTRA_CHUNKS;
-const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT;
+pub const CHUNK_SIZE: usize = 16;
+pub const CHUNK_HEIGHT: usize = 256;
+pub const VIEW_DISTANCE: usize = 4;
+pub const EXTRA_CHUNKS: usize = 1;
+pub const FLOOR_PI: usize = 3;
+pub const MAX_CHUNKS: usize = VIEW_DISTANCE * FLOOR_PI + EXTRA_CHUNKS;
+pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT;
 
 #[derive(Clone, Copy)]
 pub enum BlockType
@@ -24,7 +24,7 @@ pub struct Chunk
 {
         // Using a flat array for performance
         blocks: [BlockType; BLOCKS_PER_CHUNK],
-        xy: Vector2i,
+        pub xy: Vector2i,
 }
 
 #[derive(Clone)]

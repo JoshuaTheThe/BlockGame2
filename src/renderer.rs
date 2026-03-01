@@ -71,6 +71,9 @@ pub struct Renderer
         vao: gl::types::GLuint,
         vbo: gl::types::GLuint,
         ebo: gl::types::GLuint,
+        view_loc: gl::types::GLint,
+        proj_loc: gl::types::GLint,
+        model_loc: gl::types::GLint,
 }
 
 impl Renderer
@@ -264,6 +267,20 @@ impl Renderer
                         gl::UseProgram(program);
                         gl::Enable(gl::DEPTH_TEST);
                 }
+
+                let view_loc = unsafe
+                {
+                        gl::GetUniformLocation(program, CString::new("view").unwrap().as_ptr())
+                };
+                let proj_loc = unsafe
+                {
+                        gl::GetUniformLocation(program, CString::new("projection").unwrap().as_ptr())
+                };
+                let model_loc = unsafe
+                {
+                        gl::GetUniformLocation(program, CString::new("model").unwrap().as_ptr())
+                };
+
                 Renderer
                 {
                         sdl,
@@ -272,6 +289,29 @@ impl Renderer
                         vao,
                         vbo,
                         ebo,
+                        view_loc,
+                        proj_loc,
+                        model_loc,
+                }
+        }
+
+        pub fn set_view_projection(&self, eye: Vector3, target: Vector3, up: Vector3)
+        {
+                use cgmath::{Matrix4, Vector3 as CGVector3, Point3, Deg};
+                let eye = Point3::new(eye.x, eye.y, eye.z);
+                let target = Point3::new(target.x, target.y, target.z);
+                let up = CGVector3::new(up.x, up.y, up.z);
+                let view = Matrix4::look_at(eye, target, up);
+                let aspect = WINDOW_WIDTH as f32 / WINDOW_HEIGHT as f32;
+                let fov = Deg(70.0);
+                let near = 0.1;
+                let far = 1000.0;
+                let projection = cgmath::perspective(fov, aspect, near, far);
+            
+                unsafe
+                {
+                        gl::UniformMatrix4fv(self.view_loc, 1, gl::FALSE, view.as_ptr());
+                        gl::UniformMatrix4fv(self.proj_loc, 1, gl::FALSE, projection.as_ptr());
                 }
         }
 
@@ -280,8 +320,7 @@ impl Renderer
                 unsafe
                 {
                         let model = cgmath::Matrix4::from_translation(cgmath::Vector3::new(pos.x, pos.y, pos.z));
-                        let model_loc = gl::GetUniformLocation(self.program, CString::new("model").unwrap().as_ptr());
-                        gl::UniformMatrix4fv(model_loc, 1, gl::FALSE, model.as_ptr());
+                        gl::UniformMatrix4fv(self.model_loc, 1, gl::FALSE, model.as_ptr());
                         gl::BindVertexArray(self.vao);
                         gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
                         gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ebo);

@@ -15,6 +15,12 @@ fn main()
         chunk_manager.add_player(Vector3::new(0.0, 0.0, 0.0), "Player".to_string());
         chunk_manager.load_chunks();
 
+        renderer.set_view_projection(
+                Vector3::new(10.0, -10.0, 10.0),
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(0.0, 0.0, 1.0)
+        );
+
         'mainloop: loop
         {
                 while let Some(event) = renderer.get_sdl().poll_events()
@@ -26,19 +32,16 @@ fn main()
                         }
                 }
 
-                chunk_manager.load_chunks();
-                chunk_manager.remove_chunks();
-
-                if chunk_manager.needs_mesh_update()
+                for (i, mesh) in chunk_manager.get_meshes().iter().enumerate()
                 {
-                        chunk_manager.generate_meshes();
+                        if let Some(chunk) = chunk_manager.get_chunk(i)
+                        {
+                                let world_x = (chunk.xy.x * CHUNK_SIZE as i32) as f32;
+                                let world_y = (chunk.xy.y * CHUNK_SIZE as i32) as f32;
+                                renderer.draw_mesh(mesh, Vector3::new(world_x, world_y, 0.0));
+                        }
                 }
-
-                renderer.clear(renderer::Color::BLACK);
-                for mesh in chunk_manager.get_meshes()
-                {
-                        renderer.draw_mesh(mesh, Vector3::new(0.00,0.00,0.00));
-                }
+                
                 renderer.swap();
         }
 }
