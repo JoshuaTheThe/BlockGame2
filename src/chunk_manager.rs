@@ -16,18 +16,21 @@ pub enum BlockType
         BlockStone,
 }
 
+#[derive(Clone, Copy)]
 pub struct Vector2
 {
         x: f32,
         y: f32,
 }
 
+#[derive(Clone, Copy)]
 pub struct Vector2i
 {
         x: i32,
         y: i32,
 }
 
+#[derive(Clone, Copy)]
 pub struct Vector3
 {
         x: f32,
@@ -35,6 +38,7 @@ pub struct Vector3
         z: f32,
 }
 
+#[derive(Clone, Copy)]
 pub struct Vector3i
 {
         x: i32,
@@ -42,6 +46,7 @@ pub struct Vector3i
         z: i32,
 }
 
+#[derive(Clone, Copy)]
 pub struct Chunk
 {
         // Using a flat array for performance
@@ -49,6 +54,7 @@ pub struct Chunk
         xy: Vector2i,
 }
 
+#[derive(Clone)]
 pub struct Player
 {
         pos: Vector3,
@@ -56,6 +62,7 @@ pub struct Player
         name: Option<String>,
 }
 
+#[derive(Clone)]
 pub struct ChunkManager
 {
         chunks: [Option<Chunk>; MAX_CHUNKS],
@@ -205,13 +212,13 @@ impl ChunkManager
                 self.players.iter_mut().find(|p| p.name.as_ref() == Some(name))
         }
 
-        pub fn insert_chunk(&mut self, xy: Vector2i)
+        pub fn insert_chunk(&mut self, chunk: Chunk)
         {
                 for chunk_opt in self.chunks.iter_mut()
                 {
                         if chunk_opt.is_none()
                         {
-                                *chunk_opt = Some(Chunk::new(xy));
+                                *chunk_opt = Some(chunk);
                                 break;
                         }
                 }
@@ -298,6 +305,19 @@ impl ChunkManager
                 Chunk {
                         blocks: [BlockType::BlockStone; BLOCKS_PER_CHUNK],
                         xy: xy,
+                }
+        }
+
+        pub fn load_chunks(&mut self)
+        {
+                let to_load = self.find_chunks_to_load();
+                for chunk_xy in to_load
+                {
+                        if let None = self.find_chunk(chunk_xy)
+                        {
+                                let chunk = self.generate(chunk_xy);
+                                self.insert_chunk(chunk);
+                        }
                 }
         }
 }
