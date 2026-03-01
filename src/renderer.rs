@@ -14,6 +14,7 @@ const WINDOW_ALLOW_DPI: bool = true;
 const WINDOW_BORDERLESS: bool = false;
 const WINDOW_RESIZABLE: bool = false;
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct Color
 {
@@ -79,6 +80,28 @@ pub struct Renderer
 
 impl Renderer
 {
+        pub fn set_2d_mode(&self)
+        {
+                unsafe
+                {
+                        let projection = cgmath::ortho(
+                                0.0, WINDOW_WIDTH as f32, 
+                                WINDOW_HEIGHT as f32, 0.0, 
+                                -1.0, 1.0
+                        );
+                        let view = cgmath::Matrix4::one();
+                        let model = cgmath::Matrix4::one();
+                        gl::UniformMatrix4fv(self.proj_loc, 1, gl::FALSE, projection.as_ptr());
+                        gl::UniformMatrix4fv(self.view_loc, 1, gl::FALSE, view.as_ptr());
+                        gl::UniformMatrix4fv(self.model_loc, 1, gl::FALSE, model.as_ptr());
+                }
+        }
+            
+        pub fn set_3d_mode(&self, eye: Vector3, target: Vector3, up: Vector3)
+        {
+                self.set_view_projection(eye, target, up);
+        }
+
         pub fn get_sdl(&self) -> &Sdl
         {
                 &self.sdl
@@ -102,15 +125,16 @@ impl Renderer
         {
                 unsafe
                 {
-                        let identity = cgmath::Matrix4::new(
+                        gl::UseProgram(self.program);
+                        let one = cgmath::Matrix4::new(
                                 1.0, 0.0, 0.0, 0.0,
                                 0.0, 1.0, 0.0, 0.0,
                                 0.0, 0.0, 1.0, 0.0,
                                 0.0, 0.0, 0.0, 1.0
                         );
-                        gl::UniformMatrix4fv(self.model_loc, 1, gl::FALSE, identity.as_ptr());
-                        gl::UniformMatrix4fv(self.view_loc, 1, gl::FALSE, identity.as_ptr());
-                        gl::UniformMatrix4fv(self.proj_loc, 1, gl::FALSE, identity.as_ptr());
+                        gl::UniformMatrix4fv(self.model_loc, 1, gl::FALSE, one.as_ptr());
+                        gl::UniformMatrix4fv(self.view_loc, 1, gl::FALSE, one.as_ptr());
+                        gl::UniformMatrix4fv(self.proj_loc, 1, gl::FALSE, one.as_ptr());
                         gl::BindVertexArray(self.vao);
                         gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
                         gl::BufferData(
@@ -158,10 +182,19 @@ impl Renderer
                         uniform mat4 view;
                         uniform mat4 projection;
                         out vec4 vColor;
+                        
+                        // Constant matrix to convert from Z-up to Y-up
+                        const mat4 zUpToYUp = mat4(
+                            1.0, 0.0, 0.0, 0.0,
+                            0.0, 1.0, 0.0, 0.0,
+                            0.0, 0.0, 1.0, 0.0,
+                            0.0, 0.0, 0.0, 1.0
+                        );
+                        
                         void main()
                         {
-                                gl_Position = projection * view * model * vec4(aPos, 1.0);
-                                vColor = aColor;
+                            gl_Position = projection * view * model * zUpToYUp * vec4(aPos, 1.0);
+                            vColor = aColor;
                         }"#,
                 );
                 
@@ -278,6 +311,7 @@ impl Renderer
 
                 unsafe
                 {
+                        gl::Viewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
                         gl::UseProgram(program);
                         gl::Enable(gl::DEPTH_TEST);
                 }
@@ -286,14 +320,28 @@ impl Renderer
                 {
                         gl::GetUniformLocation(program, CString::new("view").unwrap().as_ptr())
                 };
+                if view_loc == -1
+                {
+                        panic!("Uniform 'view' not found in shader");
+                }
+
                 let proj_loc = unsafe
                 {
                         gl::GetUniformLocation(program, CString::new("projection").unwrap().as_ptr())
                 };
+                if proj_loc == -1
+                {
+                        panic!("Uniform 'projection' not found in shader");
+                }
+
                 let model_loc = unsafe
                 {
                         gl::GetUniformLocation(program, CString::new("model").unwrap().as_ptr())
                 };
+                if model_loc == -1
+                {
+                        panic!("Uniform 'model' not found in shader");
+                }
 
                 Renderer
                 {
@@ -333,6 +381,7 @@ impl Renderer
         {
                 unsafe
                 {
+                        gl::UseProgram(self.program);
                         let model = cgmath::Matrix4::from_translation(cgmath::Vector3::new(pos.x, pos.y, pos.z));
                         gl::UniformMatrix4fv(self.model_loc, 1, gl::FALSE, model.as_ptr());
                         gl::BindVertexArray(self.vao);
@@ -378,6 +427,19 @@ impl Drop for Renderer
                         gl::DeleteProgram(self.program);
                         gl::DeleteVertexArrays(1, &self.vao);
                         gl::DeleteBuffers(1, &self.vbo);
+                        gl::DeleteBuffers(1, &self.ebo);
+                }
+        }
+}
+
+fn check_gl_error()
+{
+        unsafe
+        {
+                let err = gl::GetError();
+                if err != gl::NO_ERROR
+                {
+                        panic!("OpenGL error: {}", err);
                 }
         }
 }

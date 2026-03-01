@@ -6,7 +6,7 @@ use crate::vector::*;
 
 pub const CHUNK_SIZE: usize = 16;
 pub const CHUNK_HEIGHT: usize = 256;
-pub const VIEW_DISTANCE: usize = 4;
+pub const VIEW_DISTANCE: usize = 1;
 pub const EXTRA_CHUNKS: usize = 1;
 pub const FLOOR_PI: usize = 3;
 pub const MAX_CHUNKS: usize = VIEW_DISTANCE * FLOOR_PI + EXTRA_CHUNKS;
@@ -394,6 +394,7 @@ impl ChunkManager
                                 }
                         }
                 }
+                println!(" [info] removed {} chunks", removed_count);
                 removed_count
         }
 
@@ -406,7 +407,7 @@ impl ChunkManager
                         {
                                 for z in 0..CHUNK_HEIGHT
                                 {
-                                        if z < 64
+                                        if z < 8
                                         {
                                                 let index = Chunk::index(x, y, z);
                                                 blocks[index] = BlockType::BlockStone;
