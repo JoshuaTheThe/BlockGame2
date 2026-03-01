@@ -168,6 +168,11 @@ impl ChunkManager
                                                 let index = Chunk::index(x, y, z);
                                                 blocks[index] = BlockType::BlockStone;
                                         }
+                                        else if (z < 9)
+                                        {
+                                                let index = Chunk::index(x, y, z);
+                                                blocks[index] = BlockType::BlockGrass;
+                                        }
                                 }
                         }
                 }

@@ -12,6 +12,7 @@ pub enum BlockType
 {
         BlockAir,
         BlockStone,
+        BlockGrass,
 }
 
 #[derive(Clone, Copy)]
@@ -20,6 +21,20 @@ pub struct Chunk
         // Using a flat array for performance
         pub blocks: [BlockType; BLOCKS_PER_CHUNK],
         pub xy: Vector2i,
+}
+
+impl BlockType
+{
+        pub fn get_color(block: BlockType) -> Color
+        {
+                match block
+                {
+                        BlockType::BlockAir => Color::new(0.0, 0.0, 0.0, 0.0),
+                        BlockType::BlockStone => Color::new(0.5, 0.5, 0.5, 1.0),
+                        BlockType::BlockGrass => Color::new(0.1, 0.5, 0.2, 1.0),
+                        _ => Color::new(1.0, 0.0, 1.0, 1.0),
+                }
+        }
 }
 
 impl Chunk
@@ -32,8 +47,7 @@ impl Chunk
                         z as f32,
                 ];
                     
-                let face_color: Color = Color {r: 0.7, g: 0.7, b: 0.7, a: 1.0};
-                let current_block = BlockType::BlockStone;
+                let face_color: Color = BlockType::get_color(self.blocks[Self::index(x, y, z)]);
                     
                 let is_air = |bx: i32, by: i32, bz: i32| -> bool {
                         if bx < 0 || bx >= CHUNK_SIZE as i32 ||
@@ -43,13 +57,13 @@ impl Chunk
                         }
                         match self.blocks[Self::index(bx as usize, by as usize, bz as usize)] {
                             BlockType::BlockAir => true,
-                            BlockType::BlockStone => false,
+                            _ => false,
                         }
                 };
                     
                 let (x, y, z) = (x as i32, y as i32, z as i32);
                 let idx_offset = vertices.len() as u32;
-                    
+
                 // Front face (positive Y)
                 if is_air(x, y + 1, z)
                 {
@@ -161,7 +175,7 @@ impl Chunk
                                         match block
                                         {
                                                 BlockType::BlockAir => continue,
-                                                BlockType::BlockStone =>
+                                                _ =>
                                                 {
                                                         self.add_block_faces(x, y, z, &mut vertices, &mut indices);
                                                 }
