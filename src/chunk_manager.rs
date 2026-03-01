@@ -5,11 +5,13 @@ use crate::renderer::*;
 use crate::vector::*;
 use crate::chunk::*;
 use crate::player::*;
+use crate::terrain::*;
 
-pub const VIEW_DISTANCE: usize = 2;
+pub const VIEW_DISTANCE: usize = 4;
 pub const EXTRA_CHUNKS: usize = 1;
 pub const FLOOR_PI: usize = 3;
 pub const MAX_CHUNKS: usize = VIEW_DISTANCE * VIEW_DISTANCE * FLOOR_PI + EXTRA_CHUNKS;
+pub const MAX_TREES: usize = 5;
 
 #[derive(Clone)]
 pub struct ChunkManager
@@ -17,6 +19,7 @@ pub struct ChunkManager
         chunks: Vec<Option<Box<Chunk>>>,
         players: Vec<Player>,
         meshes: Vec<Mesh>,
+        noise: Noise3D, 
 }
 
 impl ChunkManager
@@ -40,6 +43,10 @@ impl ChunkManager
                         chunks: Vec::with_capacity(MAX_CHUNKS),
                         players: Vec::new(),
                         meshes: Vec::new(),
+                        noise: Noise3D {
+                                scale: 0.02,
+                                seed: 0,
+                        },
                 }
         }
 
@@ -163,12 +170,12 @@ impl ChunkManager
                         {
                                 for z in 0..CHUNK_HEIGHT
                                 {
-                                        if z < 8
+                                        if z < x + 1
                                         {
                                                 let index = Chunk::index(x, y, z);
                                                 blocks[index] = BlockType::BlockStone;
                                         }
-                                        else if (z < 9)
+                                        else if z < x
                                         {
                                                 let index = Chunk::index(x, y, z);
                                                 blocks[index] = BlockType::BlockGrass;
@@ -183,6 +190,212 @@ impl ChunkManager
                 }
         }
 
+        pub fn generate_noise(&self, xy: Vector2i) -> Chunk
+        {
+                let mut blocks: [BlockType; BLOCKS_PER_CHUNK] = [BlockType::BlockAir; BLOCKS_PER_CHUNK];
+                let mut tree_positions: Vec<(i32, i32)> = Vec::new();
+                
+                let cave_scale = 0.05;
+                let sea_level = 4;
+                
+                for x in 0..CHUNK_SIZE
+                {
+                        for y in 0..CHUNK_SIZE
+                        {
+                                let world_x = xy.x * CHUNK_SIZE as i32 + x as i32;
+                                let world_y = xy.y * CHUNK_SIZE as i32 + y as i32;
+                                
+                                for z in 0..CHUNK_HEIGHT
+                                {
+                                        let world_z = z as i32;
+                                        let nx = world_x as f32;
+                                        let ny = world_z as f32;
+                                        let nz = world_y as f32;
+                                        let mut density = self.noise.density(
+                                            nx, ny, nz,
+                                            4, 0.5, 2.0,
+                                        );
+                                        
+                                        let height_gradient = world_z as f32 / CHUNK_HEIGHT as f32;
+                                        let target_height = 0.3 + 0.2 * self.noise.density(
+                                            world_x as f32 * 0.01, 
+                                            world_y as f32 * 0.01, 
+                                            0.0,
+                                            3, 0.5, 2.0,
+                                        );
+                                        density += (target_height - height_gradient) * 0.5;
+                                        
+                                        let cave_noise = self.noise.density(
+                                            world_x as f32 * cave_scale,
+                                            world_z as f32 * cave_scale * 0.8,
+                                            world_y as f32 * cave_scale,
+                                            3, 0.6, 2.0,
+                                        );
+                                        
+                                        if cave_noise > 0.7 && world_z < 80
+                                        {
+                                                density -= 0.3;
+                                        }
+                                        
+                                        if world_z < 5
+                                        {
+                                                density += 0.5;
+                                        }
+                                        
+                                        let index = Chunk::index(x, y, z);
+                                        
+                                        if density > 0.0
+                                        {
+                                                blocks[index] = BlockType::BlockStone;
+                                                let ore_noise = self.noise.density(
+                                                    world_x as f32 * 0.1,
+                                                    world_z as f32 * 0.1,
+                                                    world_y as f32 * 0.1,
+                                                    2, 0.5, 2.0,
+                                                );
+                                                
+                                                if ore_noise > 0.7
+                                                {
+                                                        if world_z < 16 && ore_noise > 0.85
+                                                        {
+                                                                blocks[index] = BlockType::BlockDiamondOre;
+                                                        }
+                                                        else if world_z < 32 && ore_noise > 0.8
+                                                        {
+                                                                blocks[index] = BlockType::BlockGoldOre;
+                                                        }
+                                                        else if world_z < 48 && ore_noise > 0.75
+                                                        {
+                                                                blocks[index] = BlockType::BlockIronOre;
+                                                        }
+                                                        else
+                                                        {
+                                                                blocks[index] = BlockType::BlockCoalOre;
+                                                        }
+                                                }
+                                        }
+                                }
+                        }
+                }
+                
+                // Second pass: surface decoration
+                for x in 0..CHUNK_SIZE
+                {
+                        for y in 0..CHUNK_SIZE  // y is depth
+                        {
+                                let world_x = xy.x * CHUNK_SIZE as i32 + x as i32;
+                                let world_y = xy.y * CHUNK_SIZE as i32 + y as i32;  // depth
+                                
+                                // Find highest solid block (search from top down in z)
+                                let mut highest_z = -1;
+                                for z in (0..CHUNK_HEIGHT).rev()
+                                {
+                                        let index = Chunk::index(x, y, z);
+                                        if blocks[index] != BlockType::BlockAir
+                                        {
+                                                highest_z = z as i32;
+                                                break;
+                                        }
+                                }
+                                
+                                if highest_z >= 0
+                                {
+                                        let is_underwater = (highest_z as usize) < sea_level;
+                                        let index = Chunk::index(x, y, highest_z as usize);
+                                        
+                                        if is_underwater
+                                        {
+                                                blocks[index] = BlockType::BlockSand;
+                                                
+                                                for d in 1..=3 {
+                                                        let below_z = highest_z - d;
+                                                        if below_z > 0 {
+                                                                let below_index = Chunk::index(x, y, below_z as usize);
+                                                                if blocks[below_index] == BlockType::BlockStone {
+                                                                        if d <= 2
+                                                                        {
+                                                                                blocks[below_index] =
+                                                                                if rand::random::<u32>() % 3 == 0
+                                                                                {
+                                                                                        BlockType::BlockGravel
+                                                                                }
+                                                                                else
+                                                                                {
+                                                                                        BlockType::BlockSand
+                                                                                };
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                                blocks[below_index] = BlockType::BlockGravel;
+                                                                        }
+                                                                }
+                                                        }
+                                                }
+                                        }
+                                        else
+                                        {
+                                                blocks[index] = BlockType::BlockGrass;
+                                                
+                                                // Dirt layers below surface
+                                                let dirt_depth = 2 + (rand::random::<u64>() % 2) as usize;
+                                                for d in 1..=dirt_depth
+                                                {
+                                                        let dirt_z = highest_z - d as i32;
+                                                        if dirt_z > 0
+                                                        {
+                                                                let dirt_index = Chunk::index(x, y, dirt_z as usize);
+                                                                if blocks[dirt_index] == BlockType::BlockStone
+                                                                {
+                                                                        blocks[dirt_index] = BlockType::BlockDirt;
+                                                                }
+                                                        }
+                                                }
+                                                
+                                                // Tree noise - use x and y (depth) for 2D position
+                                                let tree_noise = self.noise.density(
+                                                    world_x as f32 * 0.1,
+                                                    world_y as f32 * 0.1,
+                                                    0.0,
+                                                    1, 0.5, 2.0,
+                                                );
+                                                
+                                                if tree_positions.len() < MAX_TREES &&
+                                                   tree_noise > 0.65 &&
+                                                   highest_z < (CHUNK_HEIGHT - 5) as i32 &&
+                                                   x >= 2 && x < CHUNK_SIZE - 2 &&
+                                                   y >= 2 && y < CHUNK_SIZE - 2
+                                                {
+                                                        let above_index = Chunk::index(x, y, (highest_z + 1) as usize);
+                                                        if (highest_z + 1) < CHUNK_HEIGHT as i32 &&
+                                                           blocks[above_index] == BlockType::BlockAir
+                                                        {
+                                                                tree_positions.push((world_x, world_y));  // Store (x, depth)
+                                                        }
+                                                }
+                                        }
+                                }
+                        }
+                }
+                
+                // Fill water below sea level
+                for x in 0..CHUNK_SIZE
+                {
+                        for y in 0..CHUNK_SIZE
+                        {
+                                for z in 0..sea_level
+                                {
+                                        let index = Chunk::index(x, y, z);
+                                        if blocks[index] == BlockType::BlockAir
+                                        {
+                                                blocks[index] = BlockType::BlockWater;
+                                        }
+                                }
+                        }
+                }
+
+                Chunk { blocks, xy }
+        }
+
         pub fn load_chunks(&mut self)
         {
                 let to_load = self.find_chunks_to_load();
@@ -190,7 +403,7 @@ impl ChunkManager
                 {
                         if let None = self.find_chunk(chunk_xy)
                         {
-                                let chunk = self.generate(chunk_xy);
+                                let chunk = self.generate_noise(chunk_xy);
                                 self.insert_chunk(chunk);
                         }
                 }

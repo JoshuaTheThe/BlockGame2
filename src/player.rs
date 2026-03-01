@@ -5,6 +5,7 @@ use crate::vector::*;
 pub struct Player
 {
         pub pos: Vector3,
+        pub rot: Vector3,
         pub vel: Vector3,
         pub name: Option<String>,
 }
@@ -28,6 +29,7 @@ impl Player
                         name: name,
                         pos: position,
                         vel: Vector3::new(0.0, 0.0, 0.0),
+                        rot: Vector3::new(0.0, 0.0, 0.0),
                 }
         }
 }

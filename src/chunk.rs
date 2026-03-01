@@ -7,12 +7,20 @@ pub const CHUNK_HEIGHT: usize = 256;
 pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT;
 
 #[repr(u8)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum BlockType
 {
         BlockAir,
         BlockStone,
         BlockGrass,
+        BlockDirt,
+        BlockSand,
+        BlockGravel,
+        BlockWater,
+        BlockCoalOre,
+        BlockIronOre,
+        BlockGoldOre,
+        BlockDiamondOre,
 }
 
 #[derive(Clone, Copy)]
@@ -32,7 +40,14 @@ impl BlockType
                         BlockType::BlockAir => Color::new(0.0, 0.0, 0.0, 0.0),
                         BlockType::BlockStone => Color::new(0.5, 0.5, 0.5, 1.0),
                         BlockType::BlockGrass => Color::new(0.1, 0.5, 0.2, 1.0),
-                        _ => Color::new(1.0, 0.0, 1.0, 1.0),
+                        BlockType::BlockDirt => Color::new(0.4, 0.2, 0.0, 1.0),
+                        BlockType::BlockSand => Color::new(0.9, 0.8, 0.5, 1.0),
+                        BlockType::BlockGravel => Color::new(0.6, 0.6, 0.6, 1.0),
+                        BlockType::BlockWater => Color::new(0.0, 0.0, 1.0, 0.7),
+                        BlockType::BlockCoalOre => Color::new(0.2, 0.2, 0.2, 1.0),
+                        BlockType::BlockIronOre => Color::new(0.8, 0.6, 0.4, 1.0),
+                        BlockType::BlockGoldOre => Color::new(1.0, 0.8, 0.2, 1.0),
+                        BlockType::BlockDiamondOre => Color::new(0.4, 0.8, 1.0, 1.0),
                 }
         }
 }
