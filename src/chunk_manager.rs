@@ -1,4 +1,6 @@
 
+// notice - we are using the Z=Up Coordinate System
+
 const CHUNK_SIZE: usize = 16;
 const CHUNK_HEIGHT: usize = 256;
 const VIEW_DISTANCE: usize = 4;
@@ -43,7 +45,7 @@ pub struct Vector3i
 pub struct Chunk
 {
         // Using a flat array for performance
-        blocks: [BlockType; CHUNK_SIZE*CHUNK_SIZE*CHUNK_HEIGHT],
+        blocks: [BlockType; BLOCKS_PER_CHUNK],
         xy: Vector2i,
 }
 
@@ -201,5 +203,101 @@ impl ChunkManager
         pub fn get_player_mut(&mut self, name: &String) -> Option<&mut Player>
         {
                 self.players.iter_mut().find(|p| p.name.as_ref() == Some(name))
+        }
+
+        pub fn insert_chunk(&mut self, xy: Vector2i)
+        {
+                for chunk_opt in self.chunks.iter_mut()
+                {
+                        if chunk_opt.is_none()
+                        {
+                                *chunk_opt = Some(Chunk::new(xy));
+                                break;
+                        }
+                }
+        }
+
+       // Find chunks that should be loaded based on player positions
+        pub fn find_chunks_to_load(&self) -> Vec<Vector2i>
+        {
+                let mut chunks_to_load = Vec::new();
+                let view_dist = VIEW_DISTANCE as i32;
+                for player in &self.players
+                {
+                        let player_chunk_x = (player.pos.x as i32) / CHUNK_SIZE as i32;
+                        let player_chunk_y = (player.pos.y as i32) / CHUNK_SIZE as i32;
+                        for dx in -view_dist..=view_dist
+                        {
+                                for dz in -view_dist..=view_dist
+                                {
+                                        let chunk_x = player_chunk_x + dx;
+                                        let chunk_y = player_chunk_y + dz;
+                                        let already_loaded = self.chunks.iter()
+                                                .filter_map(|opt| opt.as_ref())
+                                                .any(|chunk| chunk.xy.x == chunk_x && chunk.xy.y == chunk_y);
+                                        if !already_loaded
+                                        {
+                                                chunks_to_load.push(Vector2i::new(chunk_x, chunk_y));
+                                        }
+                                }
+                        }
+                }
+                chunks_to_load
+        }
+
+        // Remove chunks that are too far from all players
+        pub fn remove_chunks(&mut self) -> usize
+        {
+                let mut removed_count = 0;
+                let view_distance_sq = (VIEW_DISTANCE * VIEW_DISTANCE) as i32;
+                if self.players.is_empty()
+                {
+                        for chunk_opt in self.chunks.iter_mut()
+                        {
+                                if chunk_opt.is_some()
+                                {
+                                        *chunk_opt = None;
+                                        removed_count += 1;
+                                }
+                        }
+                        return removed_count;
+                }
+            
+                for chunk_opt in self.chunks.iter_mut() 
+                {
+                        if let Some(chunk) = chunk_opt
+                        {
+                                let chunk_x = chunk.xy.x;
+                                let chunk_y = chunk.xy.y;
+                                let mut keep_chunk = false;                    
+                                for player in &self.players
+                                {
+                                        let player_chunk_x = (player.pos.x as i32) / CHUNK_SIZE as i32;
+                                        let player_chunk_y = (player.pos.y as i32) / CHUNK_SIZE as i32;
+                                        let dx = player_chunk_x - chunk_x;
+                                        let dy = player_chunk_y - chunk_y;
+                                        let dist_sq = dx * dx + dy * dy;
+                                        if dist_sq <= view_distance_sq
+                                        {
+                                                keep_chunk = true;
+                                                break;
+                                        }
+                                }
+                                if !keep_chunk
+                                {
+                                        *chunk_opt = None;
+                                        removed_count += 1;
+                                }
+                        }
+                }
+                removed_count
+        }
+
+        pub fn generate(&self, xy: Vector2i) -> Chunk
+        {
+                Chunk {
+                        blocks: [BlockType::BlockStone; BLOCKS_PER_CHUNK],
+                        xy: xy,
+                }
         }
 }
