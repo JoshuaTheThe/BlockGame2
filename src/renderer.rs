@@ -5,6 +5,7 @@ pub use std::ptr;
 
 use crate::vector::*;
 use cgmath::Matrix;
+use cgmath::One;
 
 const WINDOW_TITLE: &str = "Block Game 2";
 const WINDOW_WIDTH: i32 = 800;
@@ -101,6 +102,15 @@ impl Renderer
         {
                 unsafe
                 {
+                        let identity = cgmath::Matrix4::new(
+                                1.0, 0.0, 0.0, 0.0,
+                                0.0, 1.0, 0.0, 0.0,
+                                0.0, 0.0, 1.0, 0.0,
+                                0.0, 0.0, 0.0, 1.0
+                        );
+                        gl::UniformMatrix4fv(self.model_loc, 1, gl::FALSE, identity.as_ptr());
+                        gl::UniformMatrix4fv(self.view_loc, 1, gl::FALSE, identity.as_ptr());
+                        gl::UniformMatrix4fv(self.proj_loc, 1, gl::FALSE, identity.as_ptr());
                         gl::BindVertexArray(self.vao);
                         gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
                         gl::BufferData(
@@ -108,21 +118,25 @@ impl Renderer
                                 (vertices.len() * std::mem::size_of::<Vertex>()) as gl::types::GLsizeiptr,
                                 vertices.as_ptr() as *const _,
                                 gl::DYNAMIC_DRAW,
-                        );
-            
+                        );            
                         gl::DrawArrays(gl::TRIANGLES, 0, vertices.len() as i32);
                 }
         }
 
         pub fn draw_rect(&self, x: f32, y: f32, width: f32, height: f32, color: Color)
         {
+                let ndc_x = (x / WINDOW_WIDTH as f32) * 2.0 - 1.0;
+                let ndc_y = (y / WINDOW_HEIGHT as f32) * 2.0 - 1.0;
+                let ndc_width = (width / WINDOW_WIDTH as f32) * 2.0;
+                let ndc_height = (height / WINDOW_HEIGHT as f32) * 2.0;
+            
                 let vertices = [
-                    Vertex::new(x, y, 0.0, color),
-                    Vertex::new(x + width, y, 0.0, color),
-                    Vertex::new(x, y + height, 0.0, color),
-                    Vertex::new(x + width, y, 0.0, color),
-                    Vertex::new(x + width, y + height, 0.0, color),
-                    Vertex::new(x, y + height, 0.0, color),
+                        Vertex::new(ndc_x, ndc_y, 0.0, color),
+                        Vertex::new(ndc_x + ndc_width, ndc_y, 0.0, color),
+                        Vertex::new(ndc_x, ndc_y + ndc_height, 0.0, color),
+                        Vertex::new(ndc_x + ndc_width, ndc_y, 0.0, color),
+                        Vertex::new(ndc_x + ndc_width, ndc_y + ndc_height, 0.0, color),
+                        Vertex::new(ndc_x, ndc_y + ndc_height, 0.0, color),
                 ];
                 self.draw_tris(&vertices);
         }

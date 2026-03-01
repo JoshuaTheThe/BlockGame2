@@ -38,10 +38,11 @@ fn main()
                         {
                                 let world_x = (chunk.xy.x * CHUNK_SIZE as i32) as f32;
                                 let world_y = (chunk.xy.y * CHUNK_SIZE as i32) as f32;
-                                renderer.draw_mesh(mesh, Vector3::new(world_x, world_y, 0.0));
+                                //renderer.draw_mesh(mesh, Vector3::new(world_x, world_y, 0.0));
                         }
                 }
-                
+
+                renderer.draw_rect(1.0, 1.0, 128.0, 128.0, Color::new(1.0, 1.0, 1.0, 1.0));
                 renderer.swap();
         }
 }
