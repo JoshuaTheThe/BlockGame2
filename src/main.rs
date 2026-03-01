@@ -20,10 +20,9 @@ fn main()
 
         'mainloop: loop
         {
-                renderer.set_view_projection(
-                        Vector3::new(0.0, 0.1, 100.0),
+                renderer.set_view_projection_from_rot(
                         Vector3::new(0.0, 0.0, 0.0),
-                        Vector3::new(0.0, 0.0, 1.0)
+                        Vector3::new(0.0, 90.0, 45.0),
                 );
                 while let Some(event) = renderer.get_sdl().poll_events()
                 {

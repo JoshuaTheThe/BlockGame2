@@ -377,6 +377,34 @@ impl Renderer
                 }
         }
 
+        pub fn set_view_projection_from_rot(&self, pos: Vector3, rot: Vector3)
+        {
+                use cgmath::{Matrix4, Vector3 as CGVector3, Deg, Euler, Rad};
+                let pitch = Deg(rot.y);
+                let roll = Deg(rot.x);
+                let yaw = Deg(rot.z);
+                let rotation = Matrix4::from(Euler::new(
+                    Rad::from(pitch),
+                    Rad::from(roll),
+                    Rad::from(yaw),
+                ));
+                
+                let translation = Matrix4::from_translation(CGVector3::new(-pos.x, -pos.y, -pos.z));
+                let view = rotation * translation;
+                
+                let aspect = WINDOW_WIDTH as f32 / WINDOW_HEIGHT as f32;
+                let fov = Deg(70.0);
+                let near = 0.1;
+                let far = 1000.0;
+                let projection = cgmath::perspective(fov, aspect, near, far);
+            
+                unsafe
+                {
+                        gl::UniformMatrix4fv(self.view_loc, 1, gl::FALSE, view.as_ptr());
+                        gl::UniformMatrix4fv(self.proj_loc, 1, gl::FALSE, projection.as_ptr());
+                }
+        }
+
         pub fn draw_mesh(&self, mesh: &Mesh, pos: Vector3)
         {
                 unsafe
