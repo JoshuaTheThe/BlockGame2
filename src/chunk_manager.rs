@@ -56,7 +56,7 @@ pub struct Player
 
 pub struct ChunkManager
 {
-        chunks: Option<[Chunk; MAX_CHUNKS]>,
+        chunks: [Option<Chunk>; MAX_CHUNKS],
         players: Vec<Player>,
 }
 
@@ -146,56 +146,39 @@ impl ChunkManager
 {
         pub fn find_chunk(&self, xy: Vector2i) -> Option<&Chunk>
         {
-                match &self.chunks
-                {
-                        Some(chunks) =>
-                        {
-                            chunks.iter().find(|chunk| chunk.xy.x == xy.x && chunk.xy.y == xy.y)
-                        },
-                        None => None,
-                }
+                self.chunks.iter().filter_map(|chunk_opt| chunk_opt.as_ref())
+                        .find(|chunk| chunk.xy.x == xy.x && chunk.xy.y == xy.y) 
         }
 
         pub fn get_chunk(&self, index: usize) -> Option<&Chunk>
         {
-                match &self.chunks
+                if index >= MAX_CHUNKS
                 {
-                        Some(chunks) =>
-                        {
-                                if index >= MAX_CHUNKS
-                                {
-                                        None
-                                }
-                                else
-                                {
-                                        Some(&chunks[index])
-                                }
-                        }
-                        None => None,
+                        None
+                }
+                else
+                {
+                        self.chunks[index].as_ref()
                 }
         }
 
         pub fn update(&mut self)
         {
-                if let Some(chunks) = &self.chunks
+                for chunk_opt in self.chunks.iter_mut()
                 {
-                        for chunk in chunks
+                        if let Some(chunk) = chunk_opt
                         {
-                                println!("Test");
+                                println!("Test - chunk at ({}, {})", chunk.xy.x, chunk.xy.y);
                         }
-                }
+                } 
         }
 
         pub fn new() -> Self
         {
-                let chunks: [Chunk; MAX_CHUNKS] = std::array::from_fn(|_| {
-                        Chunk::new(Vector2i::new(0, 0))
-                });
-        
-                Self
-                {
-                        chunks: Some(chunks),
-                        players: Vec::new(),
+                const NONE: Option<Chunk> = None;
+                Self {
+                    chunks: [NONE; MAX_CHUNKS],
+                    players: Vec::new(),
                 }
         }
 
