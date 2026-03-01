@@ -2,7 +2,6 @@
 const CHUNK_SIZE: usize = 16;
 const CHUNK_HEIGHT: usize = 256;
 const VIEW_DISTANCE: usize = 4;
-const MAX_PLAYERS: usize = 16;
 const EXTRA_CHUNKS: usize = 1;
 const FLOOR_PI: usize = 3;
 const MAX_CHUNKS: usize = VIEW_DISTANCE * FLOOR_PI + EXTRA_CHUNKS;
@@ -48,17 +47,17 @@ pub struct Chunk
         xy: Vector2i,
 }
 
-pub struct Player<'a>
+pub struct Player
 {
         pos: Vector3,
         vel: Vector3,
-        name: Option<&'a str>,
+        name: Option<String>,
 }
 
-pub struct ChunkManager<'a>
+pub struct ChunkManager
 {
         chunks: Option<[Chunk; MAX_CHUNKS]>,
-        players: Option<[Player<'a>; MAX_PLAYERS]>,
+        players: Vec<Player>,
 }
 
 impl Vector2
@@ -93,16 +92,26 @@ impl Vector3i
         }
 }
 
-impl<'a> Player<'a>
+impl Player
 {
-        pub fn get_name(&self) -> &Option<&str>
+        pub fn get_name(&self) -> &Option<String>
         {
                 &self.name
         }
 
-        pub fn set_name(&mut self, new_name: Option<&'a str>)
+        pub fn set_name(&mut self, new_name: Option<String>)
         {
                 self.name = new_name;
+        }
+
+        pub fn new(name: Option<String>, position: Vector3) -> Self
+        {
+                Self
+                {
+                        name: name,
+                        pos: position,
+                        vel: Vector3::new(0.0, 0.0, 0.0),
+                }
         }
 }
 
@@ -133,7 +142,7 @@ impl Chunk
         }
 }
 
-impl<'a> ChunkManager<'a>
+impl ChunkManager
 {
         pub fn find_chunk(&self, xy: Vector2i) -> Option<&Chunk>
         {
@@ -179,33 +188,20 @@ impl<'a> ChunkManager<'a>
 
         pub fn new() -> Self
         {
-                let default_chunk = Chunk::new(Vector2i::new(0, 0));
-                let chunks: [Chunk; MAX_CHUNKS] = std::array::from_fn(|_|
-                        {
+                let chunks: [Chunk; MAX_CHUNKS] = std::array::from_fn(|_| {
                         Chunk::new(Vector2i::new(0, 0))
-                });
-        
-                let default_player = Player
-                {
-                        pos: Vector3::new(0.0, 0.0, 0.0),
-                        vel: Vector3::new(0.0, 0.0, 0.0),
-                        name: None,
-                };
-
-                let players: [Player; MAX_PLAYERS] = std::array::from_fn(|_|
-                        {
-                        Player
-                        {
-                                pos: Vector3::new(0.0, 0.0, 0.0),
-                                vel: Vector3::new(0.0, 0.0, 0.0),
-                                name: None,
-                        }
                 });
         
                 Self
                 {
-                    chunks: Some(chunks),
-                    players: Some(players),
+                        chunks: Some(chunks),
+                        players: Vec::new(),
                 }
+        }
+
+        pub fn add_player(&mut self, initial_pos: Vector3, name: String)
+        {
+                let player = Player::new(Some(name), initial_pos);
+                self.players.push(player);
         }
 }
