@@ -9,63 +9,61 @@ const MAX_CHUNKS: usize = VIEW_DISTANCE * FLOOR_PI + EXTRA_CHUNKS;
 const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT;
 
 #[derive(Clone, Copy)]
-enum BlockType
+pub enum BlockType
 {
         BlockAir,
         BlockStone,
 }
 
-struct Vector2
+pub struct Vector2
 {
         x: f32,
         y: f32,
 }
 
-struct Vector2i
+pub struct Vector2i
 {
         x: i32,
         y: i32,
 }
 
-struct Vector3
+pub struct Vector3
 {
         x: f32,
         y: f32,
         z: f32,
 }
 
-struct Vector3i
+pub struct Vector3i
 {
         x: i32,
         y: i32,
         z: i32,
 }
 
-struct Chunk
+pub struct Chunk
 {
         // Using a flat array for performance
         blocks: [BlockType; CHUNK_SIZE*CHUNK_SIZE*CHUNK_HEIGHT],
         xy: Vector2i,
-        present: bool,
 }
 
-struct Player<'a>
+pub struct Player<'a>
 {
         pos: Vector3,
         vel: Vector3,
         name: Option<&'a str>,
-        present: bool,
 }
 
-struct ChunkManager<'a>
+pub struct ChunkManager<'a>
 {
-        chunks: [Chunk; MAX_CHUNKS],
-        players: [Player<'a>; MAX_PLAYERS],
+        chunks: Option<[Chunk; MAX_CHUNKS]>,
+        players: Option<[Player<'a>; MAX_PLAYERS]>,
 }
 
 impl Vector2
 {
-        fn new(x: f32, y: f32) -> Self
+        pub fn new(x: f32, y: f32) -> Self
         {
                 Self { x, y }
         }
@@ -73,7 +71,7 @@ impl Vector2
 
 impl Vector2i
 {
-        fn new(x: i32, y: i32) -> Self
+        pub fn new(x: i32, y: i32) -> Self
         {
                 Self { x, y }
         }
@@ -81,7 +79,7 @@ impl Vector2i
 
 impl Vector3
 {
-        fn new(x: f32, y: f32, z: f32) -> Self
+        pub fn new(x: f32, y: f32, z: f32) -> Self
         {
                 Self { x, y, z }
         }
@@ -89,7 +87,7 @@ impl Vector3
 
 impl Vector3i
 {
-        fn new(x: i32, y: i32, z: i32) -> Self
+        pub fn new(x: i32, y: i32, z: i32) -> Self
         {
                 Self { x, y, z }
         }
@@ -97,12 +95,12 @@ impl Vector3i
 
 impl<'a> Player<'a>
 {
-        fn get_name(&self) -> &Option<&str>
+        pub fn get_name(&self) -> &Option<&str>
         {
                 &self.name
         }
 
-        fn set_name(&mut self, new_name: Option<&'a str>)
+        pub fn set_name(&mut self, new_name: Option<&'a str>)
         {
                 self.name = new_name;
         }
@@ -110,7 +108,7 @@ impl<'a> Player<'a>
 
 impl Chunk
 {
-        fn get_block(&self, xyz: Vector3i) -> Option<BlockType>
+        pub fn get_block(&self, xyz: Vector3i) -> Option<BlockType>
         {
                 if xyz.x < 0 || xyz.x >= CHUNK_SIZE as i32 ||
                        xyz.y < 0 || xyz.y >= CHUNK_SIZE as i32 ||
@@ -126,40 +124,88 @@ impl Chunk
                 Some(self.blocks[index])
         }
 
-        fn new(xy: Vector2i) -> Self
+        pub fn new(xy: Vector2i) -> Self
         {
                 Self {
                         blocks: [BlockType::BlockAir; BLOCKS_PER_CHUNK],
                         xy,
-                        present: true,
                 }
         }
 }
 
 impl<'a> ChunkManager<'a>
 {
-        fn find_chunk(&self, xy: Vector2i) -> Option<&Chunk>
+        pub fn find_chunk(&self, xy: Vector2i) -> Option<&Chunk>
         {
-                self.chunks.iter().find(|chunk| chunk.xy.x == xy.x && chunk.xy.y == xy.y)
-        }
-
-        fn get_chunk(&self, index: usize) -> Option<&Chunk>
-        {
-                if index >= MAX_CHUNKS
+                match &self.chunks
                 {
-                        None
-                }
-                else
-                {
-                        Some(&self.chunks[index])
+                        Some(chunks) =>
+                        {
+                            chunks.iter().find(|chunk| chunk.xy.x == xy.x && chunk.xy.y == xy.y)
+                        },
+                        None => None,
                 }
         }
 
-        fn update(&mut self)
+        pub fn get_chunk(&self, index: usize) -> Option<&Chunk>
         {
-                for chunk in &self.chunks
+                match &self.chunks
                 {
-                        println!("Test");
+                        Some(chunks) =>
+                        {
+                                if index >= MAX_CHUNKS
+                                {
+                                        None
+                                }
+                                else
+                                {
+                                        Some(&chunks[index])
+                                }
+                        }
+                        None => None,
+                }
+        }
+
+        pub fn update(&mut self)
+        {
+                if let Some(chunks) = &self.chunks
+                {
+                        for chunk in chunks
+                        {
+                                println!("Test");
+                        }
+                }
+        }
+
+        pub fn new() -> Self
+        {
+                let default_chunk = Chunk::new(Vector2i::new(0, 0));
+                let chunks: [Chunk; MAX_CHUNKS] = std::array::from_fn(|_|
+                        {
+                        Chunk::new(Vector2i::new(0, 0))
+                });
+        
+                let default_player = Player
+                {
+                        pos: Vector3::new(0.0, 0.0, 0.0),
+                        vel: Vector3::new(0.0, 0.0, 0.0),
+                        name: None,
+                };
+
+                let players: [Player; MAX_PLAYERS] = std::array::from_fn(|_|
+                        {
+                        Player
+                        {
+                                pos: Vector3::new(0.0, 0.0, 0.0),
+                                vel: Vector3::new(0.0, 0.0, 0.0),
+                                name: None,
+                        }
+                });
+        
+                Self
+                {
+                    chunks: Some(chunks),
+                    players: Some(players),
                 }
         }
 }

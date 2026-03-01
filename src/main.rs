@@ -2,9 +2,13 @@
 mod chunk_manager;
 mod renderer;
 
+use renderer::*;
+use chunk_manager::*;
+
 fn main()
 {
-        let mut renderer: renderer::Renderer = renderer::Renderer::new();
+        let mut chunk_manager: ChunkManager = ChunkManager::new();
+        let renderer: Renderer = Renderer::new();
 
         'mainloop: loop
         {
