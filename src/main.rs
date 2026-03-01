@@ -1,4 +1,6 @@
 
+mod chunk;
+mod player;
 mod vector;
 mod chunk_manager;
 mod renderer;
@@ -38,8 +40,8 @@ fn main()
                 {
                         if let Some(chunk) = chunk_manager.get_chunk(i)
                         {
-                                let world_x = (chunk.xy.x * CHUNK_SIZE as i32) as f32;
-                                let world_y = (chunk.xy.y * CHUNK_SIZE as i32) as f32;
+                                let world_x = (chunk.xy.x * chunk::CHUNK_SIZE as i32) as f32;
+                                let world_y = (chunk.xy.y * chunk::CHUNK_SIZE as i32) as f32;
                                 renderer.draw_mesh(mesh, Vector3::new(world_x, world_y, 0.0));
                         }
                 }
