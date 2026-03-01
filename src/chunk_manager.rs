@@ -12,6 +12,7 @@ pub const FLOOR_PI: usize = 3;
 pub const MAX_CHUNKS: usize = VIEW_DISTANCE * VIEW_DISTANCE * FLOOR_PI + EXTRA_CHUNKS;
 pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT;
 
+#[repr(u8)]
 #[derive(Clone, Copy)]
 pub enum BlockType
 {
