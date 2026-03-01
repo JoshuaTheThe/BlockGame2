@@ -379,8 +379,6 @@ impl ChunkManager
                                 false
                         }
                 });
-                
-                println!(" [info] removed {} chunks", removed_count);
                 removed_count
         }
 
