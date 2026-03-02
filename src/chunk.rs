@@ -59,8 +59,8 @@ impl Chunk
         fn add_block_faces(&self, x: usize, y: usize, z: usize, vertices: &mut Vec<Vertex>, indices: &mut Vec<u32>)
         {
                 let block_pos = [
-                        x as f32 - (CHUNK_SIZE as f32 / 2.0),  // Center chunk at origin
-                        y as f32 - (CHUNK_SIZE as f32 / 2.0),
+                        x as f32,
+                        y as f32,
                         z as f32,
                 ];
                     
