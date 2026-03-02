@@ -131,6 +131,7 @@ impl ChunkManager
                 if self.players.is_empty()
                 {
                         self.chunks.clear();
+                        self.meshes.clear();
                         return 0;
                 }
             
@@ -160,6 +161,12 @@ impl ChunkManager
                                 false
                         }
                 });
+                
+                if removed_count > 0
+                {
+                        self.generate_meshes();
+                }
+                
                 removed_count
         }
 
