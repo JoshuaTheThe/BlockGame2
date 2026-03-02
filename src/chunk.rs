@@ -2,7 +2,7 @@
 use crate::vector::*;
 use crate::renderer::*;
 
-pub const CHUNK_SIZE: usize = 16;
+pub const CHUNK_SIZE: usize = 8;
 pub const CHUNK_HEIGHT: usize = 100;
 pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT;
 
