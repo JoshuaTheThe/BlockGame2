@@ -12,6 +12,8 @@ pub const EXTRA_CHUNKS: usize = 1;
 pub const FLOOR_PI: usize = 3;
 pub const MAX_CHUNKS: usize = VIEW_DISTANCE * VIEW_DISTANCE * FLOOR_PI + EXTRA_CHUNKS;
 pub const MAX_TREES: usize = 5;
+pub const BEDROCK: usize = 5;
+pub const SEA_LEVEL: usize = 25;
 
 #[derive(Clone)]
 pub struct ChunkManager
@@ -196,7 +198,6 @@ impl ChunkManager
                 let mut tree_positions: Vec<(i32, i32)> = Vec::new();
                 
                 let cave_scale = 0.05;
-                let sea_level = 4;
                 
                 for x in 0..CHUNK_SIZE
                 {
@@ -273,6 +274,10 @@ impl ChunkManager
                                                                 blocks[index] = BlockType::BlockCoalOre;
                                                         }
                                                 }
+                                                else if (world_z < 5)
+                                                {
+                                                        blocks[index] = BlockType::BlockBedrock;
+                                                }
                                         }
                                 }
                         }
@@ -300,7 +305,7 @@ impl ChunkManager
                                 
                                 if highest_z >= 0
                                 {
-                                        let is_underwater = (highest_z as usize) < sea_level;
+                                        let is_underwater = (highest_z as usize) < SEA_LEVEL;
                                         let index = Chunk::index(x, y, highest_z as usize);
                                         
                                         if is_underwater
@@ -382,7 +387,7 @@ impl ChunkManager
                 {
                         for y in 0..CHUNK_SIZE
                         {
-                                for z in 0..sea_level
+                                for z in 0..SEA_LEVEL
                                 {
                                         let index = Chunk::index(x, y, z);
                                         if blocks[index] == BlockType::BlockAir

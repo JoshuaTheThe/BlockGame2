@@ -3,7 +3,7 @@ use crate::vector::*;
 use crate::renderer::*;
 
 pub const CHUNK_SIZE: usize = 16;
-pub const CHUNK_HEIGHT: usize = 256;
+pub const CHUNK_HEIGHT: usize = 100;
 pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT;
 
 #[repr(u8)]
@@ -21,6 +21,7 @@ pub enum BlockType
         BlockIronOre,
         BlockGoldOre,
         BlockDiamondOre,
+        BlockBedrock,
 }
 
 #[derive(Clone, Copy)]
@@ -48,6 +49,7 @@ impl BlockType
                         BlockType::BlockIronOre => Color::new(0.8, 0.6, 0.4, 1.0),
                         BlockType::BlockGoldOre => Color::new(1.0, 0.8, 0.2, 1.0),
                         BlockType::BlockDiamondOre => Color::new(0.4, 0.8, 1.0, 1.0),
+                        BlockType::BlockBedrock => Color::new(0.1, 0.1, 0.1, 1.0),
                 }
         }
 }
