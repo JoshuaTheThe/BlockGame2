@@ -111,7 +111,9 @@ fn main()
                         }
                 }
 
-                renderer.clear(Color::new(0.1, 0.1, 0.5, 1.0));        
+                renderer.clear(Color::new(0.1, 0.1, 0.5, 1.0));
+                chunk_manager.load_chunks();
+                chunk_manager.remove_chunks();
 
                 for (i, mesh) in chunk_manager.get_meshes().iter().enumerate()
                 {
