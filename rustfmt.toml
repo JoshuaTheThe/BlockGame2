@@ -1,0 +1,5 @@
+tab_spaces = 8
+max_width = 100  # Optional: set your preferred line width
+brace_style = "AlwaysNextLine"  # Puts opening brace on new line
+control_brace_style = "AlwaysNextLine"  # if, while, for: newline before {
+use_small_heuristics = "Max"

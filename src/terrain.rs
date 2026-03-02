@@ -1,4 +1,3 @@
-
 const OFFSET: f32 = 100000.0;
 
 #[derive(Clone)]
@@ -40,7 +39,12 @@ impl Noise3D
                 let a100 = self.sample((int_x + 1) as f32, int_y as f32, int_z as f32, seed);
                 let a101 = self.sample((int_x + 1) as f32, int_y as f32, (int_z + 1) as f32, seed);
                 let a110 = self.sample((int_x + 1) as f32, (int_y + 1) as f32, int_z as f32, seed);
-                let a111 = self.sample((int_x + 1) as f32, (int_y + 1) as f32, (int_z + 1) as f32, seed);
+                let a111 = self.sample(
+                        (int_x + 1) as f32,
+                        (int_y + 1) as f32,
+                        (int_z + 1) as f32,
+                        seed,
+                );
                 let i00 = self.lerp(a000, a100, u);
                 let i01 = self.lerp(a001, a101, u);
                 let i10 = self.lerp(a010, a110, u);
@@ -49,32 +53,40 @@ impl Noise3D
                 let i1 = self.lerp(i01, i11, v);
                 self.lerp(i0, i1, w)
         }
-            
-        pub fn density(&self, x: f32, y: f32, z: f32, octaves: i32, persistence: f32, lacunarity: f32) -> f32
+
+        pub fn density(
+                &self,
+                x: f32,
+                y: f32,
+                z: f32,
+                octaves: i32,
+                persistence: f32,
+                lacunarity: f32,
+        ) -> f32
         {
                 let seed: i64 = self.seed;
                 let mut total = 0.0;
                 let mut frequency = 1.0;
                 let mut amplitude = 1.0;
                 let mut max_value = 0.0;
-                
+
                 for i in 0..octaves
                 {
                         total += self.smooth_noise_3d(
                                 x * frequency * self.scale + OFFSET,
                                 y * frequency * self.scale + OFFSET,
                                 z * frequency * self.scale + OFFSET,
-                                seed + i as i64 * 10
+                                seed + i as i64 * 10,
                         ) * amplitude;
-                    
+
                         max_value += amplitude;
                         amplitude *= persistence;
                         frequency *= lacunarity;
                 }
-                
+
                 total / max_value
         }
-            
+
         fn lerp(&self, a: f32, b: f32, t: f32) -> f32
         {
                 a * (1.0 - t) + b * t

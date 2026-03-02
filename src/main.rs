@@ -1,13 +1,12 @@
-
-mod terrain;
 mod chunk;
-mod player;
-mod vector;
 mod chunk_manager;
+mod player;
 mod renderer;
+mod terrain;
+mod vector;
 
-use renderer::*;
 use chunk_manager::*;
+use renderer::*;
 use vector::*;
 
 const MOUSE_SENSITIVITY: f32 = 1.0;
@@ -27,74 +26,143 @@ fn main()
 
         'mainloop: loop
         {
-                if let Some(player) = chunk_manager.get_player(&player_name) {
-                        renderer.set_view_projection_from_rot(
-                                player.pos,
-                                player.rot,
-                        );
+                if let Some(player) = chunk_manager.get_player(&player_name)
+                {
+                        renderer.set_view_projection_from_rot(player.pos, player.rot);
                 }
-                
+
                 while let Some(event) = renderer.get_sdl().poll_events()
                 {
                         match event
                         {
-                                (renderer::events::Event::WindowCloseRequest { .. }, _) => break 'mainloop,
+                                (renderer::events::Event::WindowCloseRequest { .. }, _) =>
+                                {
+                                        break 'mainloop;
+                                }
                                 (renderer::events::Event::Quit, _) => break 'mainloop,
-                                (renderer::events::Event::Key { keycode, pressed, .. }, _) => {
+                                (renderer::events::Event::Key { keycode, pressed, .. }, _) =>
+                                {
                                         if pressed
                                         {
-                                                match keycode {
-                                                        beryllium::events::SDLK_ESCAPE => break 'mainloop,
-                                                        beryllium::events::SDLK_w => {
-                                                                if let Some(player) = chunk_manager.get_player_mut(&player_name)
+                                                match keycode
+                                                {
+                                                        beryllium::events::SDLK_ESCAPE =>
+                                                        {
+                                                                break 'mainloop;
+                                                        }
+                                                        beryllium::events::SDLK_w =>
+                                                        {
+                                                                if let Some(player) = chunk_manager
+                                                                        .get_player_mut(
+                                                                                &player_name,
+                                                                        )
                                                                 {
-                                                                        let yaw_rad = player.rot.z.to_radians();
-                                                                        player.pos.x += yaw_rad.sin() * MOVE_SPEED;
-                                                                        player.pos.y += yaw_rad.cos() * MOVE_SPEED;
+                                                                        let yaw_rad = player
+                                                                                .rot
+                                                                                .z
+                                                                                .to_radians();
+                                                                        player.pos.x += yaw_rad
+                                                                                .sin()
+                                                                                * MOVE_SPEED;
+                                                                        player.pos.y += yaw_rad
+                                                                                .cos()
+                                                                                * MOVE_SPEED;
                                                                 }
-                                                        },
-                                                        beryllium::events::SDLK_s => {
-                                                                if let Some(player) = chunk_manager.get_player_mut(&player_name)
+                                                        }
+                                                        beryllium::events::SDLK_s =>
+                                                        {
+                                                                if let Some(player) = chunk_manager
+                                                                        .get_player_mut(
+                                                                                &player_name,
+                                                                        )
                                                                 {
-                                                                        let yaw_rad = player.rot.z.to_radians();
-                                                                        player.pos.x -= yaw_rad.sin() * MOVE_SPEED;
-                                                                        player.pos.y -= yaw_rad.cos() * MOVE_SPEED;
+                                                                        let yaw_rad = player
+                                                                                .rot
+                                                                                .z
+                                                                                .to_radians();
+                                                                        player.pos.x -= yaw_rad
+                                                                                .sin()
+                                                                                * MOVE_SPEED;
+                                                                        player.pos.y -= yaw_rad
+                                                                                .cos()
+                                                                                * MOVE_SPEED;
                                                                 }
-                                                        },
-                                                        beryllium::events::SDLK_a => {
-                                                                if let Some(player) = chunk_manager.get_player_mut(&player_name)
+                                                        }
+                                                        beryllium::events::SDLK_a =>
+                                                        {
+                                                                if let Some(player) = chunk_manager
+                                                                        .get_player_mut(
+                                                                                &player_name,
+                                                                        )
                                                                 {
-                                                                        let yaw_rad = player.rot.z.to_radians();
-                                                                        player.pos.x -= yaw_rad.cos() * MOVE_SPEED;
-                                                                        player.pos.y += yaw_rad.sin() * MOVE_SPEED;
+                                                                        let yaw_rad = player
+                                                                                .rot
+                                                                                .z
+                                                                                .to_radians();
+                                                                        player.pos.x -= yaw_rad
+                                                                                .cos()
+                                                                                * MOVE_SPEED;
+                                                                        player.pos.y += yaw_rad
+                                                                                .sin()
+                                                                                * MOVE_SPEED;
                                                                 }
-                                                        },
-                                                        beryllium::events::SDLK_d => {
-                                                                if let Some(player) = chunk_manager.get_player_mut(&player_name)
+                                                        }
+                                                        beryllium::events::SDLK_d =>
+                                                        {
+                                                                if let Some(player) = chunk_manager
+                                                                        .get_player_mut(
+                                                                                &player_name,
+                                                                        )
                                                                 {
-                                                                        let yaw_rad = player.rot.z.to_radians();
-                                                                        player.pos.x += yaw_rad.cos() * MOVE_SPEED;
-                                                                        player.pos.y -= yaw_rad.sin() * MOVE_SPEED;
+                                                                        let yaw_rad = player
+                                                                                .rot
+                                                                                .z
+                                                                                .to_radians();
+                                                                        player.pos.x += yaw_rad
+                                                                                .cos()
+                                                                                * MOVE_SPEED;
+                                                                        player.pos.y -= yaw_rad
+                                                                                .sin()
+                                                                                * MOVE_SPEED;
                                                                 }
-                                                        },
-                                                        beryllium::events::SDLK_q => {
-                                                                if let Some(player) = chunk_manager.get_player_mut(&player_name)
+                                                        }
+                                                        beryllium::events::SDLK_q =>
+                                                        {
+                                                                if let Some(player) = chunk_manager
+                                                                        .get_player_mut(
+                                                                                &player_name,
+                                                                        )
                                                                 {
                                                                         player.pos.z -= MOVE_SPEED;
                                                                 }
                                                         }
-                                                        beryllium::events::SDLK_e => {
-                                                                if let Some(player) = chunk_manager.get_player_mut(&player_name)
+                                                        beryllium::events::SDLK_e =>
+                                                        {
+                                                                if let Some(player) = chunk_manager
+                                                                        .get_player_mut(
+                                                                                &player_name,
+                                                                        )
                                                                 {
                                                                         player.pos.z += MOVE_SPEED;
                                                                 }
                                                         }
-                                                        _ => {},
+                                                        _ =>
+                                                        {}
                                                 }
                                         }
-                                },
-                                (renderer::events::Event::MouseMotion { x_delta, y_delta, .. }, _) => {
-                                        if let Some(player) = chunk_manager.get_player_mut(&player_name) {
+                                }
+                                (
+                                        renderer::events::Event::MouseMotion {
+                                                x_delta,
+                                                y_delta,
+                                                ..
+                                        },
+                                        _,
+                                ) =>
+                                {
+                                        if let Some(player) =
+                                                chunk_manager.get_player_mut(&player_name)
+                                        {
                                                 player.rot.y += y_delta as f32 * MOUSE_SENSITIVITY;
                                                 player.rot.z += x_delta as f32 * MOUSE_SENSITIVITY;
                                                 if player.rot.y > MAX_PITCH
@@ -106,7 +174,7 @@ fn main()
                                                         player.rot.y = MIN_PITCH + 0.1;
                                                 }
                                         }
-                                },
+                                }
                                 _ => (),
                         }
                 }

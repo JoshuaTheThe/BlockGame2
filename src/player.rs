@@ -1,4 +1,3 @@
-
 use crate::vector::*;
 
 #[derive(Clone)]
@@ -24,8 +23,7 @@ impl Player
 
         pub fn new(name: Option<String>, position: Vector3) -> Self
         {
-                Self
-                {
+                Self {
                         name: name,
                         pos: position,
                         vel: Vector3::new(0.0, 0.0, 0.0),

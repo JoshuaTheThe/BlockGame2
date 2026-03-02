@@ -1,4 +1,3 @@
-
 pub use beryllium::*;
 pub use std::ffi::CString;
 pub use std::ptr;
@@ -24,13 +23,13 @@ pub struct Color
         pub a: f32,
 }
 
-impl Color 
+impl Color
 {
         pub const fn new(r: f32, g: f32, b: f32, a: f32) -> Self
         {
-            Self { r, g, b, a }
+                Self { r, g, b, a }
         }
-        
+
         pub const BLACK: Color = Color::new(0.0, 0.0, 0.0, 1.0);
         pub const WHITE: Color = Color::new(1.0, 1.0, 1.0, 1.0);
         pub const RED: Color = Color::new(1.0, 0.0, 0.0, 1.0);
@@ -57,11 +56,7 @@ impl Vertex
 {
         pub fn new(x: f32, y: f32, z: f32, color: Color) -> Self
         {
-                Self
-                {
-                        position: [x, y, z],
-                        color: color,
-                }
+                Self { position: [x, y, z], color: color }
         }
 }
 
@@ -82,12 +77,14 @@ impl Renderer
 {
         pub fn set_2d_mode(&self)
         {
-                unsafe
-                {
+                unsafe {
                         let projection = cgmath::ortho(
-                                0.0, WINDOW_WIDTH as f32, 
-                                WINDOW_HEIGHT as f32, 0.0, 
-                                -1.0, 1.0
+                                0.0,
+                                WINDOW_WIDTH as f32,
+                                WINDOW_HEIGHT as f32,
+                                0.0,
+                                -1.0,
+                                1.0,
                         );
                         let view = cgmath::Matrix4::one();
                         let model = cgmath::Matrix4::one();
@@ -96,7 +93,7 @@ impl Renderer
                         gl::UniformMatrix4fv(self.model_loc, 1, gl::FALSE, model.as_ptr());
                 }
         }
-            
+
         pub fn set_3d_mode(&self, eye: Vector3, target: Vector3, up: Vector3)
         {
                 self.set_view_projection(eye, target, up);
@@ -114,23 +111,19 @@ impl Renderer
 
         pub fn clear(&self, color: Color)
         {
-                unsafe
-                {
-                    gl::ClearColor(color.r, color.g, color.b, color.a);
-                    gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+                unsafe {
+                        gl::ClearColor(color.r, color.g, color.b, color.a);
+                        gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
                 }
         }
 
         pub fn draw_tris(&self, vertices: &[Vertex])
         {
-                unsafe
-                {
+                unsafe {
                         gl::UseProgram(self.program);
                         let one = cgmath::Matrix4::new(
-                                1.0, 0.0, 0.0, 0.0,
-                                0.0, 1.0, 0.0, 0.0,
-                                0.0, 0.0, 1.0, 0.0,
-                                0.0, 0.0, 0.0, 1.0
+                                1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+                                0.0, 0.0, 1.0,
                         );
                         gl::UniformMatrix4fv(self.model_loc, 1, gl::FALSE, one.as_ptr());
                         gl::UniformMatrix4fv(self.view_loc, 1, gl::FALSE, one.as_ptr());
@@ -139,10 +132,11 @@ impl Renderer
                         gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
                         gl::BufferData(
                                 gl::ARRAY_BUFFER,
-                                (vertices.len() * std::mem::size_of::<Vertex>()) as gl::types::GLsizeiptr,
+                                (vertices.len() * std::mem::size_of::<Vertex>())
+                                        as gl::types::GLsizeiptr,
                                 vertices.as_ptr() as *const _,
                                 gl::DYNAMIC_DRAW,
-                        );            
+                        );
                         gl::DrawArrays(gl::TRIANGLES, 0, vertices.len() as i32);
                 }
         }
@@ -153,7 +147,7 @@ impl Renderer
                 let ndc_y = (y / WINDOW_HEIGHT as f32) * 2.0 - 1.0;
                 let ndc_width = (width / WINDOW_WIDTH as f32) * 2.0;
                 let ndc_height = (height / WINDOW_HEIGHT as f32) * 2.0;
-            
+
                 let vertices = [
                         Vertex::new(ndc_x, ndc_y, 0.0, color),
                         Vertex::new(ndc_x + ndc_width, ndc_y, 0.0, color),
@@ -197,7 +191,7 @@ impl Renderer
                             vColor = aColor;
                         }"#,
                 );
-                
+
                 let fragment_shader = Self::compile_shader(
                         gl::FRAGMENT_SHADER,
                         r#"
@@ -209,14 +203,13 @@ impl Renderer
                                 FragColor = vColor;
                         }"#,
                 );
-                
-                unsafe
-                {
+
+                unsafe {
                         let program = gl::CreateProgram();
                         gl::AttachShader(program, vertex_shader);
                         gl::AttachShader(program, fragment_shader);
                         gl::LinkProgram(program);
-                    
+
                         let mut success = gl::FALSE as gl::types::GLint;
                         gl::GetProgramiv(program, gl::LINK_STATUS, &mut success);
                         if success != gl::TRUE as gl::types::GLint
@@ -228,11 +221,10 @@ impl Renderer
                         program
                 }
         }
-        
+
         fn compile_shader(shader_type: gl::types::GLenum, source: &str) -> gl::types::GLuint
         {
-                unsafe
-                {
+                unsafe {
                         let shader = gl::CreateShader(shader_type);
                         let c_str = std::ffi::CString::new(source).unwrap();
                         gl::ShaderSource(shader, 1, &c_str.as_ptr(), std::ptr::null());
@@ -246,35 +238,40 @@ impl Renderer
                         shader
                 }
         }
-        
+
         fn setup_buffers() -> (gl::types::GLuint, gl::types::GLuint, gl::types::GLuint)
         {
                 let mut vao = 0;
                 let mut vbo = 0;
                 let mut ebo = 0;
-                
-                unsafe
-                {
-                    gl::GenVertexArrays(1, &mut vao);
-                    gl::GenBuffers(1, &mut vbo);
-                    gl::GenBuffers(1, &mut ebo);
-                    gl::BindVertexArray(vao);
-                    gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-                    gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
-                    gl::VertexAttribPointer(
-                        0, 3, gl::FLOAT, gl::FALSE,
-                        std::mem::size_of::<Vertex>() as i32,
-                        std::ptr::null()
-                    );
-                    gl::EnableVertexAttribArray(0);
-                    gl::VertexAttribPointer(
-                        1, 4, gl::FLOAT, gl::FALSE,
-                        std::mem::size_of::<Vertex>() as i32,
-                        (3 * std::mem::size_of::<f32>()) as *const _
-                    );
-                    gl::EnableVertexAttribArray(1);
+
+                unsafe {
+                        gl::GenVertexArrays(1, &mut vao);
+                        gl::GenBuffers(1, &mut vbo);
+                        gl::GenBuffers(1, &mut ebo);
+                        gl::BindVertexArray(vao);
+                        gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
+                        gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
+                        gl::VertexAttribPointer(
+                                0,
+                                3,
+                                gl::FLOAT,
+                                gl::FALSE,
+                                std::mem::size_of::<Vertex>() as i32,
+                                std::ptr::null(),
+                        );
+                        gl::EnableVertexAttribArray(0);
+                        gl::VertexAttribPointer(
+                                1,
+                                4,
+                                gl::FLOAT,
+                                gl::FALSE,
+                                std::mem::size_of::<Vertex>() as i32,
+                                (3 * std::mem::size_of::<f32>()) as *const _,
+                        );
+                        gl::EnableVertexAttribArray(1);
                 }
-                
+
                 (vao, vbo, ebo)
         }
 
@@ -286,9 +283,10 @@ impl Renderer
                 sdl.set_gl_profile(video::GlProfile::Core).expect("Failed to set GL profile");
                 #[cfg(target_os = "macos")]
                 {
-                        sdl.gl_set_context_flags(GlContextFlags::FORWARD_COMPATIBLE).expect("Failed to set GL context flags");
+                        sdl.gl_set_context_flags(GlContextFlags::FORWARD_COMPATIBLE)
+                                .expect("Failed to set GL context flags");
                 }
-                
+
                 let win_args = video::CreateWinArgs {
                         title: WINDOW_TITLE,
                         width: WINDOW_WIDTH,
@@ -301,23 +299,19 @@ impl Renderer
                 let window = sdl.create_gl_window(win_args).expect("Couldn't create window");
                 gl::load_with(|s| {
                         let c_str = CString::new(s).unwrap();
-                        unsafe {
-                                window.get_proc_address(c_str.as_ptr() as *const u8) as *const _
-                        }
+                        unsafe { window.get_proc_address(c_str.as_ptr() as *const u8) as *const _ }
                 });
 
                 let program = Self::create_shader_program();
                 let (vao, vbo, ebo) = Self::setup_buffers();
 
-                unsafe
-                {
+                unsafe {
                         gl::Viewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
                         gl::UseProgram(program);
                         gl::Enable(gl::DEPTH_TEST);
                 }
 
-                let view_loc = unsafe
-                {
+                let view_loc = unsafe {
                         gl::GetUniformLocation(program, CString::new("view").unwrap().as_ptr())
                 };
                 if view_loc == -1
@@ -325,17 +319,18 @@ impl Renderer
                         panic!("Uniform 'view' not found in shader");
                 }
 
-                let proj_loc = unsafe
-                {
-                        gl::GetUniformLocation(program, CString::new("projection").unwrap().as_ptr())
+                let proj_loc = unsafe {
+                        gl::GetUniformLocation(
+                                program,
+                                CString::new("projection").unwrap().as_ptr(),
+                        )
                 };
                 if proj_loc == -1
                 {
                         panic!("Uniform 'projection' not found in shader");
                 }
 
-                let model_loc = unsafe
-                {
+                let model_loc = unsafe {
                         gl::GetUniformLocation(program, CString::new("model").unwrap().as_ptr())
                 };
                 if model_loc == -1
@@ -343,23 +338,12 @@ impl Renderer
                         panic!("Uniform 'model' not found in shader");
                 }
 
-                Renderer
-                {
-                        sdl,
-                        window,
-                        program,
-                        vao,
-                        vbo,
-                        ebo,
-                        view_loc,
-                        proj_loc,
-                        model_loc,
-                }
+                Renderer { sdl, window, program, vao, vbo, ebo, view_loc, proj_loc, model_loc }
         }
 
         pub fn set_view_projection(&self, eye: Vector3, target: Vector3, up: Vector3)
         {
-                use cgmath::{Matrix4, Vector3 as CGVector3, Point3, Deg};
+                use cgmath::{Deg, Matrix4, Point3, Vector3 as CGVector3};
                 let eye = Point3::new(eye.x, eye.y, eye.z);
                 let target = Point3::new(target.x, target.y, target.z);
                 let up = CGVector3::new(up.x, up.y, up.z);
@@ -369,9 +353,8 @@ impl Renderer
                 let near = 0.1;
                 let far = 1000.0;
                 let projection = cgmath::perspective(fov, aspect, near, far);
-            
-                unsafe
-                {
+
+                unsafe {
                         gl::UniformMatrix4fv(self.view_loc, 1, gl::FALSE, view.as_ptr());
                         gl::UniformMatrix4fv(self.proj_loc, 1, gl::FALSE, projection.as_ptr());
                 }
@@ -379,27 +362,26 @@ impl Renderer
 
         pub fn set_view_projection_from_rot(&self, pos: Vector3, rot: Vector3)
         {
-                use cgmath::{Matrix4, Vector3 as CGVector3, Deg, Euler, Rad};
+                use cgmath::{Deg, Euler, Matrix4, Rad, Vector3 as CGVector3};
                 let pitch = Deg(rot.y);
                 let roll = Deg(rot.x);
                 let yaw = Deg(rot.z);
                 let rotation = Matrix4::from(Euler::new(
-                    Rad::from(pitch),
-                    Rad::from(roll),
-                    Rad::from(yaw),
+                        Rad::from(pitch),
+                        Rad::from(roll),
+                        Rad::from(yaw),
                 ));
-                
+
                 let translation = Matrix4::from_translation(CGVector3::new(-pos.x, -pos.y, -pos.z));
                 let view = rotation * translation;
-                
+
                 let aspect = WINDOW_WIDTH as f32 / WINDOW_HEIGHT as f32;
                 let fov = Deg(70.0);
                 let near = 0.1;
                 let far = 1000.0;
                 let projection = cgmath::perspective(fov, aspect, near, far);
-            
-                unsafe
-                {
+
+                unsafe {
                         gl::UniformMatrix4fv(self.view_loc, 1, gl::FALSE, view.as_ptr());
                         gl::UniformMatrix4fv(self.proj_loc, 1, gl::FALSE, projection.as_ptr());
                 }
@@ -407,35 +389,38 @@ impl Renderer
 
         pub fn draw_mesh(&self, mesh: &Mesh, pos: Vector3)
         {
-                unsafe
-                {
+                unsafe {
                         gl::UseProgram(self.program);
-                        let model = cgmath::Matrix4::from_translation(cgmath::Vector3::new(pos.x, pos.y, pos.z));
+                        let model = cgmath::Matrix4::from_translation(cgmath::Vector3::new(
+                                pos.x, pos.y, pos.z,
+                        ));
                         gl::UniformMatrix4fv(self.model_loc, 1, gl::FALSE, model.as_ptr());
                         gl::BindVertexArray(self.vao);
                         gl::BindBuffer(gl::ARRAY_BUFFER, self.vbo);
                         gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, self.ebo);
                         gl::BufferData(
                                 gl::ARRAY_BUFFER,
-                                (mesh.vertices.len() * std::mem::size_of::<Vertex>()) as gl::types::GLsizeiptr,
+                                (mesh.vertices.len() * std::mem::size_of::<Vertex>())
+                                        as gl::types::GLsizeiptr,
                                 mesh.vertices.as_ptr() as *const _,
                                 gl::STATIC_DRAW,
                         );
-                
+
                         if !mesh.indices.is_empty()
                         {
                                 gl::BufferData(
                                         gl::ELEMENT_ARRAY_BUFFER,
-                                        (mesh.indices.len() * std::mem::size_of::<u32>()) as gl::types::GLsizeiptr,
+                                        (mesh.indices.len() * std::mem::size_of::<u32>())
+                                                as gl::types::GLsizeiptr,
                                         mesh.indices.as_ptr() as *const _,
                                         gl::STATIC_DRAW,
                                 );
-                    
+
                                 gl::DrawElements(
                                         gl::TRIANGLES,
                                         mesh.indices.len() as i32,
                                         gl::UNSIGNED_INT,
-                                        std::ptr::null()
+                                        std::ptr::null(),
                                 );
                         }
                         else
@@ -450,8 +435,7 @@ impl Drop for Renderer
 {
         fn drop(&mut self)
         {
-                unsafe
-                {
+                unsafe {
                         gl::DeleteProgram(self.program);
                         gl::DeleteVertexArrays(1, &self.vao);
                         gl::DeleteBuffers(1, &self.vbo);
@@ -462,8 +446,7 @@ impl Drop for Renderer
 
 fn check_gl_error()
 {
-        unsafe
-        {
+        unsafe {
                 let err = gl::GetError();
                 if err != gl::NO_ERROR
                 {
