@@ -68,7 +68,7 @@ impl Chunk
                         if bx < 0 || bx >= CHUNK_SIZE as i32 ||
                            by < 0 || by >= CHUNK_SIZE as i32 ||
                            bz < 0 || bz >= CHUNK_HEIGHT as i32 {
-                            return false; // out of bounds might not be air (oh well)
+                            return true;
                         }
                         match self.blocks[Self::index(bx as usize, by as usize, bz as usize)] {
                             BlockType::BlockAir => true,
