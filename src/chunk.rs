@@ -1,9 +1,8 @@
 use crate::renderer::*;
 use crate::vector::*;
 
-pub const CHUNK_SIZE: usize = 8;
-pub const CHUNK_HEIGHT: usize = 100;
-pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE * CHUNK_SIZE * CHUNK_HEIGHT;
+pub const CHUNK_SIZE: usize = 32;
+pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq)]
@@ -74,7 +73,7 @@ impl Chunk
                                 || by < 0
                                 || by >= CHUNK_SIZE as i32
                                 || bz < 0
-                                || bz >= CHUNK_HEIGHT as i32
+                                || bz >= CHUNK_SIZE as i32
                         {
                                 return true;
                         }
@@ -337,7 +336,7 @@ impl Chunk
                 {
                         for y in 0..CHUNK_SIZE
                         {
-                                for z in 0..CHUNK_HEIGHT
+                                for z in 0..CHUNK_SIZE
                                 {
                                         let block = self.blocks[Self::index(x, y, z)];
                                         match block
@@ -373,7 +372,7 @@ impl Chunk
                         || xyz.y < 0
                         || xyz.y >= CHUNK_SIZE as i32
                         || xyz.z < 0
-                        || xyz.z >= CHUNK_HEIGHT as i32
+                        || xyz.z >= CHUNK_SIZE as i32
                 {
                         return None;
                 }

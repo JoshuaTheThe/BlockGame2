@@ -1,6 +1,5 @@
 pub use beryllium::*;
 pub use std::ffi::CString;
-pub use std::ptr;
 
 use crate::vector::*;
 use cgmath::Matrix;
@@ -71,6 +70,14 @@ pub struct Renderer
         view_loc: gl::types::GLint,
         proj_loc: gl::types::GLint,
         model_loc: gl::types::GLint,
+}
+
+impl Mesh
+{
+        pub fn new() -> Self
+        {
+                Self { vertices: Vec::new(), indices: Vec::new() }
+        }
 }
 
 impl Renderer
@@ -347,7 +354,7 @@ impl Renderer
                 let eye = Point3::new(eye.x, eye.y, eye.z);
                 let target = Point3::new(target.x, target.y, target.z);
                 let up = CGVector3::new(up.x, up.y, up.z);
-                let view = Matrix4::look_at(eye, target, up);
+                let view = Matrix4::look_at_rh(eye, target, up);
                 let aspect = WINDOW_WIDTH as f32 / WINDOW_HEIGHT as f32;
                 let fov = Deg(70.0);
                 let near = 0.1;

@@ -181,11 +181,10 @@ fn main()
 
                 renderer.clear(Color::new(0.1, 0.1, 0.5, 1.0));
                 chunk_manager.load_chunks();
-                chunk_manager.remove_chunks();
-
-                for (i, mesh) in chunk_manager.get_meshes().iter().enumerate()
+                for (i, mesh_opt) in chunk_manager.get_meshes().read().unwrap().iter().enumerate()
                 {
                         if let Some(chunk) = chunk_manager.get_chunk(i)
+                                && let Some(mesh) = mesh_opt
                         {
                                 let world_x = (chunk.xy.x * chunk::CHUNK_SIZE as i32) as f32;
                                 let world_y = (chunk.xy.y * chunk::CHUNK_SIZE as i32) as f32;

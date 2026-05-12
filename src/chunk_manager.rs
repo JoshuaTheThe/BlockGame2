@@ -1,13 +1,15 @@
-// notice - we are using the Z=Up Coordinate System
+// rewritten for performance
+// for now it will remain as 32x32x32 non cubic chunks, will convert to cubic soon
 
 use crate::chunk::*;
 use crate::player::*;
 use crate::renderer::*;
 use crate::terrain::*;
 use crate::vector::*;
+use std::sync::{Arc, RwLock};
 
 pub const VIEW_DISTANCE: usize = 4;
-pub const EXTRA_CHUNKS: usize = 1;
+pub const EXTRA_CHUNKS: usize = 32;
 pub const FLOOR_PI: usize = 3;
 pub const MAX_CHUNKS: usize = VIEW_DISTANCE * VIEW_DISTANCE * FLOOR_PI + EXTRA_CHUNKS;
 pub const MAX_TREES: usize = 5;
@@ -17,34 +19,36 @@ pub const SEA_LEVEL: usize = 25;
 #[derive(Clone)]
 pub struct ChunkManager
 {
-        chunks: Vec<Option<Box<Chunk>>>,
-        players: Vec<Player>,
-        meshes: Vec<Mesh>,
+        chunks: [Option<Box<Chunk>>; MAX_CHUNKS],
+        meshes: Arc<RwLock<[Option<Box<Mesh>>; MAX_CHUNKS]>>,
+        chunk_ages: [usize; MAX_CHUNKS], // cache, oldest is overwritten
+        players: Vec<Player>,            // this makes sense at least
         noise: Noise3D,
 }
 
 impl ChunkManager
 {
-        pub fn find_chunk(&self, xy: Vector2i) -> Option<&Chunk>
+        pub fn find_chunk(&self, xy: Vector2i) -> Option<&Box<Chunk>>
         {
                 self.chunks
                         .iter()
-                        .filter_map(|chunk_opt| chunk_opt.as_ref().map(|b| &**b))
+                        .filter_map(|chunk_opt| chunk_opt.as_ref().map(|b| b))
                         .find(|chunk| chunk.xy.x == xy.x && chunk.xy.y == xy.y)
         }
 
-        pub fn get_chunk(&self, index: usize) -> Option<&Chunk>
+        pub fn get_chunk(&self, index: usize) -> Option<&Box<Chunk>>
         {
-                self.chunks.get(index).and_then(|opt| opt.as_ref().map(|b| &**b))
+                self.chunks.get(index).and_then(|opt| opt.as_ref().map(|b| b))
         }
 
         pub fn new() -> Self
         {
                 const NONE: Option<Chunk> = None;
                 Self {
-                        chunks: Vec::with_capacity(MAX_CHUNKS),
+                        chunks: [const { None }; MAX_CHUNKS],
+                        meshes: Arc::new(RwLock::new([const { None }; MAX_CHUNKS])),
+                        chunk_ages: [256; MAX_CHUNKS],
                         players: Vec::new(),
-                        meshes: Vec::new(),
                         noise: Noise3D { scale: 0.02, seed: 0 },
                 }
         }
@@ -70,23 +74,81 @@ impl ChunkManager
                 self.players.iter_mut().find(|p| p.name.as_ref() == Some(name))
         }
 
-        pub fn insert_chunk(&mut self, chunk: Chunk)
+        pub fn victim(&self) -> usize
         {
-                for chunk_opt in self.chunks.iter_mut()
+                let mut victim_idx = 0;
+                let mut victim_age = 0;
+                for (idx, chunk) in self.chunks.iter().enumerate()
                 {
-                        if chunk_opt.is_none()
+                        if chunk.is_none()
                         {
-                                *chunk_opt = Some(Box::new(chunk));
-                                return;
+                                return idx;
+                        }
+
+                        if self.chunk_ages[idx] > victim_age
+                        {
+                                victim_age = self.chunk_ages[idx];
+                                victim_idx = idx;
                         }
                 }
-                if self.chunks.len() < MAX_CHUNKS
+
+                victim_idx
+        }
+
+        // find a chunk that either does not exist, or is too old
+        pub fn insert_chunk(&mut self, chunk: Chunk)
+        {
+                let victim: usize = self.victim();
+                self.chunks[victim] = Some(Box::new(chunk));
+                self.chunk_ages[victim] = 0;
+                self.chunk_ages.iter_mut().enumerate().for_each(|(i, age)| {
+                        if i != victim
+                        {
+                                *age += 1;
+                        }
+                });
+        }
+
+        pub fn generate_meshes(&mut self)
+        {
+                for (index, chunk_opt) in self.chunks.iter().enumerate()
                 {
-                        self.chunks.push(Some(Box::new(chunk)));
+                        if let Some(chunk) = chunk_opt
+                        {
+                                let mesh = Box::new(chunk.generate_mesh());
+                                if let Ok(mut meshes) = self.meshes.write()
+                                {
+                                        meshes[index] = Some(mesh);
+                                }
+                        }
                 }
         }
 
-        // Find chunks that should be loaded based on player positions using circular distance
+        pub fn get_meshes(&self) -> &Arc<RwLock<[Option<Box<Mesh>>; MAX_CHUNKS]>>
+        {
+                &self.meshes
+        }
+
+        pub fn load_chunks(&mut self)
+        {
+                let to_load = self.find_chunks_to_load();
+                let mut count: u32 = 0;
+                for chunk_xy in to_load
+                {
+                        if let None = self.find_chunk(chunk_xy)
+                        {
+                                let chunk = self.generate_noise(chunk_xy);
+                                self.insert_chunk(chunk);
+                                count += 1;
+                        }
+                }
+
+                if count > 0
+                {
+                        self.generate_meshes();
+                }
+        }
+
         pub fn find_chunks_to_load(&self) -> Vec<Vector2i>
         {
                 let mut chunks_to_load = Vec::new();
@@ -95,8 +157,8 @@ impl ChunkManager
 
                 for player in &self.players
                 {
-                        let player_chunk_x = (player.pos.x as i32) / CHUNK_SIZE as i32;
-                        let player_chunk_y = (player.pos.y as i32) / CHUNK_SIZE as i32;
+                        let player_chunk_x = (player.pos.x as i32) / (CHUNK_SIZE as i32);
+                        let player_chunk_y = (player.pos.y as i32) / (CHUNK_SIZE as i32);
                         for dx in -view_dist..=view_dist
                         {
                                 for dz in -view_dist..=view_dist
@@ -126,83 +188,6 @@ impl ChunkManager
                 chunks_to_load
         }
 
-        // Remove chunks that are too far from all players
-        pub fn remove_chunks(&mut self) -> usize
-        {
-                let mut removed_count = 0;
-                let view_distance_sq = (VIEW_DISTANCE * VIEW_DISTANCE) as i32;
-
-                if self.players.is_empty()
-                {
-                        self.chunks.clear();
-                        self.meshes.clear();
-                        return 0;
-                }
-
-                self.chunks.retain_mut(|chunk_opt| {
-                        if let Some(chunk) = chunk_opt
-                        {
-                                let chunk_x = chunk.xy.x;
-                                let chunk_y = chunk.xy.y;
-
-                                for player in &self.players
-                                {
-                                        let player_chunk_x =
-                                                (player.pos.x as i32) / CHUNK_SIZE as i32;
-                                        let player_chunk_y =
-                                                (player.pos.y as i32) / CHUNK_SIZE as i32;
-                                        let dx = player_chunk_x - chunk_x;
-                                        let dy = player_chunk_y - chunk_y;
-                                        let dist_sq = dx * dx + dy * dy;
-                                        if dist_sq <= view_distance_sq
-                                        {
-                                                return true;
-                                        }
-                                }
-                                removed_count += 1;
-                                false
-                        }
-                        else
-                        {
-                                false
-                        }
-                });
-
-                if removed_count > 0
-                {
-                        self.generate_meshes();
-                }
-
-                removed_count
-        }
-
-        pub fn generate(&self, xy: Vector2i) -> Chunk
-        {
-                let mut blocks: [BlockType; BLOCKS_PER_CHUNK] =
-                        [BlockType::BlockAir; BLOCKS_PER_CHUNK];
-                for x in 0..CHUNK_SIZE
-                {
-                        for y in 0..CHUNK_SIZE
-                        {
-                                for z in 0..CHUNK_HEIGHT
-                                {
-                                        if z < x + 1
-                                        {
-                                                let index = Chunk::index(x, y, z);
-                                                blocks[index] = BlockType::BlockStone;
-                                        }
-                                        else if z < x
-                                        {
-                                                let index = Chunk::index(x, y, z);
-                                                blocks[index] = BlockType::BlockGrass;
-                                        }
-                                }
-                        }
-                }
-
-                Chunk { blocks: blocks, xy: xy }
-        }
-
         pub fn generate_noise(&self, xy: Vector2i) -> Chunk
         {
                 let mut blocks: [BlockType; BLOCKS_PER_CHUNK] =
@@ -218,7 +203,7 @@ impl ChunkManager
                                 let world_x = xy.x * CHUNK_SIZE as i32 + x as i32;
                                 let world_y = xy.y * CHUNK_SIZE as i32 + y as i32;
 
-                                for z in 0..CHUNK_HEIGHT
+                                for z in 0..CHUNK_SIZE
                                 {
                                         let world_z = z as i32;
                                         let nx = world_x as f32;
@@ -227,7 +212,7 @@ impl ChunkManager
                                         let mut density =
                                                 self.noise.density(nx, ny, nz, 4, 0.5, 2.0);
 
-                                        let height_gradient = world_z as f32 / CHUNK_HEIGHT as f32;
+                                        let height_gradient = world_z as f32 / CHUNK_SIZE as f32;
                                         let target_height = 0.3 + 0.2 * self.noise.density(
                                                 world_x as f32 * 0.01,
                                                 world_y as f32 * 0.01,
@@ -294,7 +279,7 @@ impl ChunkManager
                                                                         BlockType::BlockCoalOre;
                                                         }
                                                 }
-                                                else if (world_z < 5)
+                                                else if world_z < 5
                                                 {
                                                         blocks[index] = BlockType::BlockBedrock;
                                                 }
@@ -314,7 +299,7 @@ impl ChunkManager
 
                                 // Find highest solid block (search from top down in z)
                                 let mut highest_z = -1;
-                                for z in (0..CHUNK_HEIGHT).rev()
+                                for z in (0..CHUNK_SIZE).rev()
                                 {
                                         let index = Chunk::index(x, y, z);
                                         if blocks[index] != BlockType::BlockAir
@@ -403,7 +388,7 @@ impl ChunkManager
 
                                                 if tree_positions.len() < MAX_TREES
                                                         && tree_noise > 0.65
-                                                        && highest_z < (CHUNK_HEIGHT - 5) as i32
+                                                        && highest_z < (CHUNK_SIZE - 5) as i32
                                                         && x >= 2
                                                         && x < CHUNK_SIZE - 2
                                                         && y >= 2
@@ -414,7 +399,7 @@ impl ChunkManager
                                                                 y,
                                                                 (highest_z + 1) as usize,
                                                         );
-                                                        if (highest_z + 1) < CHUNK_HEIGHT as i32
+                                                        if (highest_z + 1) < CHUNK_SIZE as i32
                                                                 && blocks[above_index]
                                                                         == BlockType::BlockAir
                                                         {
@@ -444,45 +429,5 @@ impl ChunkManager
                 }
 
                 Chunk { blocks, xy }
-        }
-
-        pub fn load_chunks(&mut self)
-        {
-                let to_load = self.find_chunks_to_load();
-                for chunk_xy in to_load
-                {
-                        if let None = self.find_chunk(chunk_xy)
-                        {
-                                let chunk = self.generate_noise(chunk_xy);
-                                self.insert_chunk(chunk);
-                        }
-                }
-        }
-
-        pub fn generate_meshes(&mut self) -> &[Mesh]
-        {
-                let mut meshes: Vec<Mesh> = Vec::with_capacity(MAX_CHUNKS);
-
-                for chunk_op in self.chunks.iter()
-                {
-                        if let Some(chunk) = chunk_op
-                        {
-                                meshes.push(chunk.generate_mesh());
-                        }
-                }
-
-                self.meshes = meshes;
-                &self.meshes
-        }
-
-        pub fn get_meshes(&self) -> &[Mesh]
-        {
-                &self.meshes
-        }
-
-        pub fn needs_mesh_update(&self) -> bool
-        {
-                let loaded_chunks = self.chunks.iter().filter(|c| c.is_some()).count();
-                self.meshes.len() != loaded_chunks
         }
 }

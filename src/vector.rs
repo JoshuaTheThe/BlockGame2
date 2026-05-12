@@ -5,7 +5,7 @@ pub struct Vector2
         pub y: f32,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Vector2i
 {
         pub x: i32,
