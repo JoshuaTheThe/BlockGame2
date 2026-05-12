@@ -1,8 +1,9 @@
 use crate::renderer::*;
 use crate::vector::*;
 
-pub const CHUNK_SIZE: usize = 32;
-pub const BLOCKS_PER_CHUNK: usize = CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE;
+pub const CHUNK_WIDTH:  usize = 32;
+pub const CHUNK_HEIGHT: usize = 64;
+pub const BLOCKS_PER_CHUNK: usize = CHUNK_WIDTH * CHUNK_WIDTH * CHUNK_HEIGHT;
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialEq)]
@@ -69,11 +70,11 @@ impl Chunk
 
                 let is_air = |bx: i32, by: i32, bz: i32| -> bool {
                         if bx < 0
-                                || bx >= CHUNK_SIZE as i32
+                                || bx >= CHUNK_WIDTH as i32
                                 || by < 0
-                                || by >= CHUNK_SIZE as i32
+                                || by >= CHUNK_WIDTH as i32
                                 || bz < 0
-                                || bz >= CHUNK_SIZE as i32
+                                || bz >= CHUNK_HEIGHT as i32
                         {
                                 return true;
                         }
@@ -332,11 +333,11 @@ impl Chunk
                 let mut vertices: Vec<Vertex> = Vec::new();
                 let mut indices: Vec<u32> = Vec::new();
 
-                for x in 0..CHUNK_SIZE
+                for x in 0..CHUNK_WIDTH
                 {
-                        for y in 0..CHUNK_SIZE
+                        for y in 0..CHUNK_WIDTH
                         {
-                                for z in 0..CHUNK_SIZE
+                                for z in 0..CHUNK_HEIGHT
                                 {
                                         let block = self.blocks[Self::index(x, y, z)];
                                         match block
@@ -362,17 +363,17 @@ impl Chunk
 
         pub fn index(x: usize, y: usize, z: usize) -> usize
         {
-                x + y * CHUNK_SIZE + z * CHUNK_SIZE * CHUNK_SIZE
+                x + y * CHUNK_WIDTH + z * CHUNK_WIDTH * CHUNK_WIDTH
         }
 
         pub fn get_block(&self, xyz: Vector3i) -> Option<BlockType>
         {
                 if xyz.x < 0
-                        || xyz.x >= CHUNK_SIZE as i32
+                        || xyz.x >= CHUNK_WIDTH as i32
                         || xyz.y < 0
-                        || xyz.y >= CHUNK_SIZE as i32
+                        || xyz.y >= CHUNK_WIDTH as i32
                         || xyz.z < 0
-                        || xyz.z >= CHUNK_SIZE as i32
+                        || xyz.z >= CHUNK_HEIGHT as i32
                 {
                         return None;
                 }

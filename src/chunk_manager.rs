@@ -157,8 +157,8 @@ impl ChunkManager
 
                 for player in &self.players
                 {
-                        let player_chunk_x = (player.pos.x as i32) / (CHUNK_SIZE as i32);
-                        let player_chunk_y = (player.pos.y as i32) / (CHUNK_SIZE as i32);
+                        let player_chunk_x = (player.pos.x as i32) / (CHUNK_WIDTH as i32);
+                        let player_chunk_y = (player.pos.y as i32) / (CHUNK_WIDTH as i32);
                         for dx in -view_dist..=view_dist
                         {
                                 for dz in -view_dist..=view_dist
@@ -196,23 +196,22 @@ impl ChunkManager
 
                 let cave_scale = 0.05;
 
-                for x in 0..CHUNK_SIZE
+                for x in 0..CHUNK_WIDTH
                 {
-                        for y in 0..CHUNK_SIZE
+                        for y in 0..CHUNK_WIDTH
                         {
-                                let world_x = xy.x * CHUNK_SIZE as i32 + x as i32;
-                                let world_y = xy.y * CHUNK_SIZE as i32 + y as i32;
+                                let world_x = xy.x * CHUNK_WIDTH as i32 + x as i32;
+                                let world_y = xy.y * CHUNK_WIDTH as i32 + y as i32;
+                                let nx = world_x as f32;
+                                let nz = world_y as f32;
 
-                                for z in 0..CHUNK_SIZE
+                                for z in 0..CHUNK_HEIGHT
                                 {
                                         let world_z = z as i32;
-                                        let nx = world_x as f32;
                                         let ny = world_z as f32;
-                                        let nz = world_y as f32;
                                         let mut density =
                                                 self.noise.density(nx, ny, nz, 4, 0.5, 2.0);
-
-                                        let height_gradient = world_z as f32 / CHUNK_SIZE as f32;
+                                        let height_gradient = world_z as f32 / CHUNK_HEIGHT as f32;
                                         let target_height = 0.3 + 0.2 * self.noise.density(
                                                 world_x as f32 * 0.01,
                                                 world_y as f32 * 0.01,
@@ -289,17 +288,17 @@ impl ChunkManager
                 }
 
                 // Second pass: surface decoration
-                for x in 0..CHUNK_SIZE
+                for x in 0..CHUNK_WIDTH
                 {
-                        for y in 0..CHUNK_SIZE
+                        for y in 0..CHUNK_WIDTH
                         // y is depth
                         {
-                                let world_x = xy.x * CHUNK_SIZE as i32 + x as i32;
-                                let world_y = xy.y * CHUNK_SIZE as i32 + y as i32; // depth
+                                let world_x = xy.x * CHUNK_WIDTH as i32 + x as i32;
+                                let world_y = xy.y * CHUNK_WIDTH as i32 + y as i32; // depth
 
                                 // Find highest solid block (search from top down in z)
                                 let mut highest_z = -1;
-                                for z in (0..CHUNK_SIZE).rev()
+                                for z in (0..CHUNK_HEIGHT).rev()
                                 {
                                         let index = Chunk::index(x, y, z);
                                         if blocks[index] != BlockType::BlockAir
@@ -388,18 +387,18 @@ impl ChunkManager
 
                                                 if tree_positions.len() < MAX_TREES
                                                         && tree_noise > 0.65
-                                                        && highest_z < (CHUNK_SIZE - 5) as i32
+                                                        && highest_z < (CHUNK_HEIGHT - 5) as i32
                                                         && x >= 2
-                                                        && x < CHUNK_SIZE - 2
+                                                        && x < CHUNK_WIDTH - 2
                                                         && y >= 2
-                                                        && y < CHUNK_SIZE - 2
+                                                        && y < CHUNK_WIDTH - 2
                                                 {
                                                         let above_index = Chunk::index(
                                                                 x,
                                                                 y,
                                                                 (highest_z + 1) as usize,
                                                         );
-                                                        if (highest_z + 1) < CHUNK_SIZE as i32
+                                                        if (highest_z + 1) < CHUNK_HEIGHT as i32
                                                                 && blocks[above_index]
                                                                         == BlockType::BlockAir
                                                         {
@@ -413,9 +412,9 @@ impl ChunkManager
                 }
 
                 // Fill water below sea level
-                for x in 0..CHUNK_SIZE
+                for x in 0..CHUNK_WIDTH
                 {
-                        for y in 0..CHUNK_SIZE
+                        for y in 0..CHUNK_WIDTH
                         {
                                 for z in 0..SEA_LEVEL
                                 {

@@ -186,8 +186,8 @@ fn main()
                         if let Some(chunk) = chunk_manager.get_chunk(i)
                                 && let Some(mesh) = mesh_opt
                         {
-                                let world_x = (chunk.xy.x * chunk::CHUNK_SIZE as i32) as f32;
-                                let world_y = (chunk.xy.y * chunk::CHUNK_SIZE as i32) as f32;
+                                let world_x = (chunk.xy.x * chunk::CHUNK_WIDTH as i32) as f32;
+                                let world_y = (chunk.xy.y * chunk::CHUNK_WIDTH as i32) as f32;
                                 renderer.draw_mesh(mesh, Vector3::new(world_x, world_y, 0.0));
                         }
                 }
